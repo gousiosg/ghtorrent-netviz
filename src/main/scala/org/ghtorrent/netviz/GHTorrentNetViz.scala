@@ -6,6 +6,33 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader {
 
   val data = load
 
+  lazy val timebins = {
+    var min = data.commits.minBy(c => c.timestamp).timestamp
+    var max = data.commits.maxBy(c => c.timestamp).timestamp
+
+    if (min < 946684800) // 1.1.2000
+      min = 946684800
+
+    if (max > System.currentTimeMillis() / 1000)
+      max = (System.currentTimeMillis() / 1000).toInt
+
+    data.commits.foldLeft(Vector[Int]()) {
+      (acc, x) =>
+        if (min < x.timestamp && x.timestamp < max)
+          acc :+ (x.timestamp - min) / 604800
+        else
+          acc
+    }.groupBy {
+      x => x
+    }.map {
+      x =>
+        TimeBin(min + (x._1 * 604800), min + (x._1 * 604800) + 604800, x._2.size)
+    }.toList.sortWith{
+      (a,b) =>
+        a.start < b.start
+    }
+  }
+
   get("/langs") {
     data.langs
   }
@@ -56,7 +83,12 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader {
     }
   }
 
+  get("/hist") {
+    timebins
+  }
+
   def dataLocation: String = System.getProperty("data.file")
 }
 
+case class TimeBin(start: Int, end: Int, count: Int)
 case class Edge(x: Int, y: Int)
