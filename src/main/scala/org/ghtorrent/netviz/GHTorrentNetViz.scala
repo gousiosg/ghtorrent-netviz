@@ -4,10 +4,13 @@ import org.json4s.{DefaultFormats, Formats}
 import org.scalatra.json._
 
 import org.scalatra.{BadRequest, NotFound}
+import org.slf4j.LoggerFactory
 
 class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJsonSupport {
 
   val reqTS = new ThreadLocal[Long]()
+  val log = LoggerFactory.getLogger("API")
+
   protected implicit val jsonFormats: Formats = DefaultFormats
 
   before() {
@@ -17,7 +20,7 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
 
   after() {
     val time = System.currentTimeMillis() - reqTS.get
-    println(request.getRequestURL + ": " + time + " ms")
+    log.info("time: " + time + " ms")
   }
 
   val data = load
@@ -32,7 +35,7 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
     if (max > System.currentTimeMillis() / 1000)
       max = (System.currentTimeMillis() / 1000).toInt
 
-    data.commits.foldLeft(Vector[Int]()) {
+    val bins = data.commits.foldLeft(Vector[Int]()) {
       (acc, x) =>
         if (min < x.timestamp && x.timestamp < max)
           acc :+ (x.timestamp - min) / 604800
@@ -47,14 +50,16 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
       (a,b) =>
         a.start < b.start
     }
+    log.info(bins.size + " histogram bins")
+    bins
   }
 
   get("/langs") {
-    data.langs
+    data.langs.toList
   }
 
   get("/langsearch") {
-    data.langs.filter(l => l.name.startsWith(params("q")))
+    data.langs.filter(l => l.name.startsWith(params("q"))).toSeq
   }
 
   get("/projects") {

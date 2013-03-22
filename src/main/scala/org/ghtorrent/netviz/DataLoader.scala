@@ -3,6 +3,7 @@ package org.ghtorrent.netviz
 import io.Source
 import collection.parallel.immutable
 import collection.mutable
+import org.slf4j.LoggerFactory
 
 case class Commit(id: Int, project: Project,
                   developer: Developer, timestamp: Int)
@@ -28,13 +29,15 @@ order by c.created_at
 
 trait DataLoader {
 
+  private val log = LoggerFactory.getLogger("Loader")
+
   def dataLocation: String
 
   def load() : Data =
     load(Source.fromFile(dataLocation))
 
   def load(s: Source) : Data = {
-
+    val ts = System.currentTimeMillis
     val projects = mutable.Map[String, Project]()
     val langs    = mutable.Map[String, Lang]()
     val devs     = mutable.Map[Int, Developer]()
@@ -79,6 +82,12 @@ trait DataLoader {
       }
     }
 
+    val totalTime = System.currentTimeMillis - ts
+    val numCommits = commits.size
+    val numProjects = projects.size
+    val numLangs = langs.size
+    val numDevs = devs.size
+    log.info(s"\n\t$numCommits commits\n\t$numProjects projects\n\t$numLangs languages\n\t$numDevs developers\n\tin $totalTime ms")
     Data(commits.toList.par, projects.values.toList.par,
          langs.values.toList.par, devs.values.toList.par)
   }
