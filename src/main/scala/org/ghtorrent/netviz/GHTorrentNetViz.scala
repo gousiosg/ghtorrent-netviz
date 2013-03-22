@@ -1,8 +1,24 @@
 package org.ghtorrent.netviz
 
+import org.json4s.{DefaultFormats, Formats}
+import org.scalatra.json._
+
 import org.scalatra.{BadRequest, NotFound}
 
-class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader {
+class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJsonSupport {
+
+  val reqTS = new ThreadLocal[Long]()
+  protected implicit val jsonFormats: Formats = DefaultFormats
+
+  before() {
+    contentType = formats("json")
+    reqTS.set(System.currentTimeMillis)
+  }
+
+  after() {
+    val time = System.currentTimeMillis() - reqTS.get
+    println(request.getRequestURL + ": " + time + " ms")
+  }
 
   val data = load
 

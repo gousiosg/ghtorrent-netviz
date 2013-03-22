@@ -27,5 +27,4 @@ class DataLoaderSpec extends Specification with DataLoader {
       data.commits must have size (9999)
     }
   }
-
 }
