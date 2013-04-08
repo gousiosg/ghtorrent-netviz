@@ -96,28 +96,40 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
         val timer = Timer(System.currentTimeMillis)
 
         val a = data.commits.filter {
-          c => c.project.lang.id == langId
+          c => c.project.lang.id == langId &&
                c.timestamp > from &&
                c.timestamp < to
         }
-        timer.tick("Filter timestamps")(log)
+        timer.tick("Filter timestamps and language: " + a.size + " commits")(log)
+
         val b = a.groupBy {
           x => x.developer.id
         }.values
-        timer.tick("Group commits by developer")(log)
+        timer.tick("Group commits by developer: " + b.size + " groups")(log)
+
         val c = b.map {
           x => x.map{y => y.project.id}.distinct
         }
-        timer.tick("Distinct list of projects")(log)
+        timer.tick("Convert commits -> projects: " + c.size + " project lists")(log)
+
         val d = c.map {
-          x => x.toList.combinations(2).toList
-        }.flatten
-        timer.tick("Combinations of projects. Size = " + c.size)(log)
+          /* The combinations function returns an iterator so converting it to
+           * List is expensive. Make the most common cases fast.
+           */
+          x => x match {
+            case y if y.size == 1 => List[List[Int]]()
+            case y if y.size == 2 => List(y.toList)
+            case _ => x.toList.combinations(2).toList
+          }
+        }.flatten.toParArray.distinct
+        timer.tick("Distinct pairs of projects: " + d.size + " pairs")(log)
+
         val e = d.take(5000).map {
           x => Edge(x.head, x.tail.head)
-        }
-        timer.tick("Generate edges")(log)
-        e.toList.distinct
+        }.toList
+        timer.tick("Generate edges: " + e.size + " edges")(log)
+
+        e
       case Some(x) => NotFound("Language " + x + " not found")
       case None => BadRequest("Missing required parameter l")
     }
@@ -139,7 +151,7 @@ case class TimeBin(start: Int, end: Int, count: Int)
 case class Edge(x: Int, y: Int)
 
 case class Timer(start: Long) {
-  var tick = 0L
+  var tick = System.currentTimeMillis
 
   def tick(stage: String)(implicit log: org.slf4j.Logger) {
     val now = System.currentTimeMillis
@@ -147,6 +159,6 @@ case class Timer(start: Long) {
     val diff = now - tick
     tick = now
 
-    log.info(stage + ": " + diff + "ms, total: " + diffFromStart + "ms")
+    log.info(stage + " " + diff + "ms, total: " + diffFromStart + "ms")
   }
 }
