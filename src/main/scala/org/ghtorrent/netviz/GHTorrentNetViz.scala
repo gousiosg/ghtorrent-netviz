@@ -107,15 +107,17 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
         timer.tick("Group commits by developer")(log)
         val c = b.map {
           x => x.map{y => y.project.id}.distinct
-        }.map {
+        }
+        timer.tick("Distinct list of projects")(log)
+        val d = c.map {
           x => x.toList.combinations(2).toList
         }.flatten
-        timer.tick("Generate list of common projects. Size = " + c.size)(log)
-        val d = c.take(5000).map {
+        timer.tick("Combinations of projects. Size = " + c.size)(log)
+        val e = d.take(5000).map {
           x => Edge(x.head, x.tail.head)
         }
         timer.tick("Generate edges")(log)
-        d.toList.distinct
+        e.toList.distinct
       case Some(x) => NotFound("Language " + x + " not found")
       case None => BadRequest("Missing required parameter l")
     }
