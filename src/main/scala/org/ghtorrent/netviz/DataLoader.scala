@@ -18,13 +18,7 @@ case class Data(commits: immutable.ParSeq[Commit],
 
 /*
 
-select p.id as project_id, u.login as project_owner, p.name as project_name, u1.id as commiter_id,
-       u1.login as committer, p.language as lang, unix_timestamp(c.created_at) as timestamp
-from projects p, users u, commits c, project_commits pc, users u1
-where pc.commit_id = c.id and pc.project_id = p.id and p.forked_from is null and p.deleted is false
-      and p.language is not null and c.author_id = u1.id and p.owner_id = u.id and
-      and u1.login not regexp('^[A-Z]{8}$')
-order by c.created_at
+select p.id as project_id, u.login as project_owner, p.name as project_name, u1.id as commiter_id, u1.login as committer, p.language as lang, unix_timestamp(c.created_at) as timestamp from projects p, users u, commits c, project_commits pc, users u1 where pc.commit_id = c.id and pc.project_id = p.id and p.forked_from is null and p.deleted is false and p.language is not null and c.author_id = u1.id and p.owner_id = u.id and u1.login not regexp('^[A-Z]{8}$') order by c.created_at
  */
 
 trait DataLoader {

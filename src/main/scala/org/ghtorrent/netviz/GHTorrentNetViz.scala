@@ -5,6 +5,7 @@ import org.scalatra.json._
 
 import org.scalatra.{BadRequest, NotFound}
 import org.slf4j.LoggerFactory
+import scala.collection.parallel.immutable.ParSeq
 
 class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJsonSupport {
 
@@ -59,7 +60,13 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
   }
 
   get("/langsearch") {
-    data.langs.filter(l => l.name.startsWith(params("q"))).toSeq
+    params("q") match {
+      case q : String =>
+        data.langs.filter(l => l.name.toLowerCase.startsWith(q.toLowerCase)).toList
+      case _ =>
+        log.info("Cannot find parameter q")
+        List()
+    }
   }
 
   get("/projects") {
@@ -86,22 +93,37 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
     lang match {
       case Some(x) if(data.langs.find(y => x.equalsIgnoreCase(y.name)).isDefined) =>
         val langId = data.langs.find(y => x.equalsIgnoreCase(y.name)).get.id
-        data.commits.filter {
+        val timer = Timer(System.currentTimeMillis)
+
+        val a = data.commits.filter {
           c => c.project.lang.id == langId
                c.timestamp > from &&
                c.timestamp < to
-        }.groupBy {
+        }
+        timer.tick("Filter timestamps")(log)
+        val b = a.groupBy {
           x => x.developer.id
-        }.values.map {
+        }.values
+        timer.tick("Group commits by developer")(log)
+        val c = b.map {
           x => x.map{y => y.project.id}.distinct
         }.map {
           x => x.toList.combinations(2).toList
-        }.flatten.take(5000).map {
+        }.flatten
+        timer.tick("Generate list of common projects. Size = " + c.size)(log)
+        val d = c.take(5000).map {
           x => Edge(x.head, x.tail.head)
-        }.toList.distinct
+        }
+        timer.tick("Generate edges")(log)
+        d.toList.distinct
       case Some(x) => NotFound("Language " + x + " not found")
       case None => BadRequest("Missing required parameter l")
     }
+  }
+
+  def log[T](col: ParSeq[T]): ParSeq[T] = {
+
+    col
   }
 
   get("/hist") {
@@ -113,3 +135,16 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
 
 case class TimeBin(start: Int, end: Int, count: Int)
 case class Edge(x: Int, y: Int)
+
+case class Timer(start: Long) {
+  var tick = 0L
+
+  def tick(stage: String)(implicit log: org.slf4j.Logger) {
+    val now = System.currentTimeMillis
+    val diffFromStart = now - start
+    val diff = now - tick
+    tick = now
+
+    log.info(stage + ": " + diff + "ms, total: " + diffFromStart + "ms")
+  }
+}
