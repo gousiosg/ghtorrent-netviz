@@ -136,6 +136,7 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
         }.map{
           x => Node(x, projectLang(x))
         }.toArray
+        timer.tick("Graph nodes (projects): " + nodes.size + " nodes")(log)
 
         val edges = d.map {
           x =>
