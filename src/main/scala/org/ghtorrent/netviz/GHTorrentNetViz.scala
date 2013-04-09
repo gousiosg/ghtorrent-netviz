@@ -86,17 +86,24 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
   }
 
   get("/links") {
-    val lang = Option(params("l"))
+    val langs = Option(multiParams("l"))
     val from = try{Integer.parseInt(params("f"))} catch {case e: Exception => 0}
     val to   = try{Integer.parseInt(params("t"))} catch {case e: Exception => Integer.MAX_VALUE}
 
-    lang match {
-      case Some(x) if(data.langs.find(y => x.equalsIgnoreCase(y.name)).isDefined) =>
-        val langId = data.langs.find(y => x.equalsIgnoreCase(y.name)).get.id
+    langs match {
+      case Some(x) =>
+        val langIds = x.foldLeft(Set[Int]()){
+          (acc, x) =>
+            data.langs.find(y => x.equalsIgnoreCase(y.name)) match {
+              case Some(z) => acc + z.id
+              case None => acc
+            }
+        }
+
         val timer = Timer(System.currentTimeMillis)
 
         val a = data.commits.filter {
-          c => c.project.lang.id == langId &&
+          c => langIds.contains(c.project.lang.id) &&
                c.timestamp > from &&
                c.timestamp < to
         }
@@ -121,23 +128,24 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
             case y if y.size == 2 => List(y.toList)
             case _ => x.toList.combinations(2).toList
           }
-        }.flatten.toParArray.distinct
+        }.flatten.toParArray.toSet.take(5000)
         timer.tick("Distinct pairs of projects: " + d.size + " pairs")(log)
 
-        val e = d.take(5000).map {
-          x => Edge(x.head, x.tail.head)
-        }.toList
-        timer.tick("Generate edges: " + e.size + " edges")(log)
+        val nodes = d.foldLeft(Set[Int]()){
+          (acc, x) => acc + x.head + x.tail.head
+        }.map{
+          x => Node(x, projectLang(x))
+        }.toArray
 
-        e
-      case Some(x) => NotFound("Language " + x + " not found")
+        val edges = d.map {
+          x =>
+            Edge(nodeIndex(nodes, x.head), nodeIndex(nodes, x.tail.head))
+        }.toList
+        timer.tick("Generate graph: " + edges.size + " edges")(log)
+
+        Graph(nodes, edges)
       case None => BadRequest("Missing required parameter l")
     }
-  }
-
-  def log[T](col: ParSeq[T]): ParSeq[T] = {
-
-    col
   }
 
   get("/hist") {
@@ -145,10 +153,18 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
   }
 
   def dataLocation: String = System.getProperty("data.file")
+
+  def projectLang(pid: Int) = data.projects.find(p => p.id == pid).get.lang
+  def nodeIndex(nodes: Array[Node], nid: Int) = nodes.indexOf(Node(nid, projectLang(nid)))
 }
 
 case class TimeBin(start: Int, end: Int, count: Int)
-case class Edge(x: Int, y: Int)
+
+// d3.js representation of graphs
+// https://github.com/mbostock/d3/wiki/Force-Layout#wiki-nodes
+case class Graph(nodes: Array[Node], links: List[Edge])
+case class Node(pid: Int, lang: Lang)
+case class Edge(source: Int, target: Int)
 
 case class Timer(start: Long) {
   var tick = System.currentTimeMillis
