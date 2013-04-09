@@ -115,7 +115,7 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
         timer.tick("Group commits by developer: " + b.size + " groups")(log)
 
         val c = b.map {
-          x => x.map{y => y.project.id}.distinct
+          x => x.map{y => y.project}.distinct
         }
         timer.tick("Convert commits -> projects: " + c.size + " project lists")(log)
 
@@ -124,23 +124,24 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
            * List is expensive. Make the most common cases fast.
            */
           x => x match {
-            case y if y.size == 1 => List[List[Int]]()
+            case y if y.size == 1 => List[List[Project]]()
             case y if y.size == 2 => List(y.toList)
             case _ => x.toList.combinations(2).toList
           }
         }.flatten.toParArray.toSet.take(5000)
         timer.tick("Distinct pairs of projects: " + d.size + " pairs")(log)
 
-        val nodes = d.foldLeft(Set[Int]()){
+        val nodes = d.foldLeft(Set[Project]()){
           (acc, x) => acc + x.head + x.tail.head
         }.map{
-          x => Node(x, projectLang(x))
+          x => Node(x.id, x.lang)
         }.toArray
         timer.tick("Graph nodes (projects): " + nodes.size + " nodes")(log)
 
         val edges = d.map {
           x =>
-            Edge(nodeIndex(nodes, x.head), nodeIndex(nodes, x.tail.head))
+            Edge(nodes.indexOf(Node(x.head.id, x.head.lang)),
+              nodes.indexOf(Node(x.tail.head.id, x.tail.head.lang)))
         }.toList
         timer.tick("Generate graph: " + edges.size + " edges")(log)
 
@@ -154,9 +155,6 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
   }
 
   def dataLocation: String = System.getProperty("data.file")
-
-  def projectLang(pid: Int) = data.projects.find(p => p.id == pid).get.lang
-  def nodeIndex(nodes: Array[Node], nid: Int) = nodes.indexOf(Node(nid, projectLang(nid)))
 }
 
 case class TimeBin(start: Int, end: Int, count: Int)
