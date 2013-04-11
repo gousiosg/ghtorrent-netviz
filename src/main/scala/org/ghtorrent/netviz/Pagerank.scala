@@ -1,12 +1,26 @@
 package org.ghtorrent.netviz
 
-case class Node[T](name: T, lang: Lang, rank: Double = Graph.default_rank)
+case class Node[T](name: T, rank: Double = Graph.default_rank)
 case class Link[T](source: Node[T], target: Node[T])
 
 case class Graph[T](nodes: Seq[Node[T]], edges: Seq[Link[T]]) {
 
-  private def outEdges(node: Node[T])  = edges.filter(e => e.source == node)
-  private def inEdges(node: Node[T])   = edges.filter(e => e.target == node)
+  private lazy val inEdgeNodes = {
+    edges.foldLeft(Map[Node[T], List[Node[T]]]().withDefaultValue(List[Node[T]]())){
+      (acc, n) =>
+        acc ++ Map(n.target -> (n.source :: acc(n.target)))
+    }
+  }
+
+  private lazy val outEdgeNodes = {
+    edges.foldLeft(Map[Node[T], List[Node[T]]]().withDefaultValue(List[Node[T]]())){
+      (acc, n) =>
+        acc ++ Map(n.source -> (n.target :: acc(n.source)))
+    }
+  }
+
+  //private def outEdges(node: Node[T])  = edges.filter(e => e.source == node)
+  //private def inEdges(node: Node[T])   = edges.filter(e => e.target == node)
 
   def pagerank(deltaPR: Double = 0.0001, maxIterations: Int = 100, dumping: Double = 0.85) : Seq[Node[T]] = {
     val nodesArr = nodes.toArray
@@ -21,13 +35,15 @@ case class Graph[T](nodes: Seq[Node[T]], edges: Seq[Link[T]]) {
 
         for (i <- 0 to (nodesArr.size - 1)) {
           val node = nodesArr(i)
-          val incoming = inEdges(node).map {x => x.source}
+          //val incoming = inEdges(node).map {x => x.source}
+          val incoming = inEdgeNodes(node)
 
           val sumRanks = incoming.foldLeft(0d) {
             (acc, a) =>
               val nodeIdx = nodeIdxs(a)
               val nodePR = if (nodeIdx >= i) ranks(nodeIdx) else newRanks(nodeIdx)
-              val totalEdges = outEdges(a).size
+              //val totalEdges = outEdges(a).size
+              val totalEdges = outEdgeNodes(a).size
               val PRincr = if (totalEdges == 0) 0 else (nodePR / totalEdges.toDouble)
               acc + PRincr
           }
