@@ -114,7 +114,7 @@ case class Graph[T](nodes: Seq[Node[T]], edges: Seq[Link[T]]) {
                   acc + PRincr
               }
               val newRank = (1d - dumping) + dumping * sumRanks
-              System.out.println("Node " + node.name + " old=" + ranks(nodeIdxs(node)) + " new=" + newRank)
+              //System.out.println("Node " + node.name + " old=" + ranks(nodeIdxs(node)) + " new=" + newRank)
               newRank
           }.toArray
 
