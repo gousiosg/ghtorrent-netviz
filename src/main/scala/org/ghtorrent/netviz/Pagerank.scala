@@ -2,6 +2,7 @@ package org.ghtorrent.netviz
 
 import scala.util.control.Breaks._
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.parallel.immutable.ParSeq
 
 case class Node[T](name: T, rank: Double = Graph.default_rank)
 
@@ -86,6 +87,50 @@ case class Graph[T](nodes: Seq[Node[T]], edges: Seq[Link[T]]) {
     }
 
     return nodes.zip(iterHelper).map(x => x._1.copy[T](rank = x._2))
+  }
+
+  def parPagerank(deltaPR: Double = 0.0001, maxIterations: Int = 100, dumping: Double = 0.85): ParSeq[Node[T]] = {
+    val nodeIdxs = (0 to (nodes.length - 1)).foldLeft(Map[Node[T], Int]()) {
+      (acc, i) => acc ++ Map(nodes(i) -> i)
+    }
+
+    def iterHelper: Array[Double] = {
+      var ranks = Array.fill[Double](nodes.length)(Graph.default_rank)
+      val parNodes = nodes.par
+
+      (1 to maxIterations).foreach {
+        x =>
+          System.out.println("Iteration " + x)
+          val newRanks = parNodes.map {
+            node =>
+              val incoming = inEdgeNodes(node)
+
+              val sumRanks = incoming.foldLeft(0d) {
+                (acc, a) =>
+                  val nodeIdx = nodeIdxs(a)
+                  val nodePR = ranks(nodeIdx)
+                  val totalEdges = outEdgeNodes(a).size
+                  val PRincr = if (totalEdges == 0) 0 else (nodePR / totalEdges.toDouble)
+                  acc + PRincr
+              }
+              val newRank = (1d - dumping) + dumping * sumRanks
+              System.out.println("Node " + node.name + " old=" + ranks(nodeIdxs(node)) + " new=" + newRank)
+              newRank
+          }.toArray
+
+          System.out.println("s=" + newRanks.foldLeft(0d) {
+            (acc, x) => acc + x
+          })
+
+          ranks.zip(newRanks).find(a => Math.abs(a._1 - a._2) > deltaPR) match {
+            case Some(x) => ranks = newRanks
+            case None => return ranks
+          }
+      }
+      ranks
+    }
+
+    return nodes.zip(iterHelper).map(x => x._1.copy[T](rank = x._2)).toList.par
   }
 }
 
