@@ -128,24 +128,31 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
             case y if y.size == 2 => List(y.toList)
             case _ => x.toList.combinations(2).toList
           }
-        }.flatten.toParArray.toSet.take(5000)
+        }.flatten.toSet
         timer.tick("Distinct pairs of projects: " + d.size + " pairs")(log)
 
         val nodes = d.foldLeft(Set[Project]()){
           (acc, x) => acc + x.head + x.tail.head
-        }.map{
-          x => Node(x.id, x.lang)
+        }.map {
+          x => Node[Int](x.id, x.lang)
         }.toArray
+
         timer.tick("Graph nodes (projects): " + nodes.size + " nodes")(log)
+
+        val nodeIdxs = (0 to (nodes.size - 1)).foldLeft(Map[Node[Int], Int]()){(acc, i) => acc ++ Map(nodes(i) -> i)}
 
         val edges = d.map {
           x =>
-            Edge(nodes.indexOf(Node(x.head.id, x.head.lang)),
-              nodes.indexOf(Node(x.tail.head.id, x.tail.head.lang)))
+            Link(nodes(nodeIdxs(Node(x.head.id, x.head.lang))),
+              nodes(nodeIdxs(Node(x.tail.head.id, x.tail.head.lang))))
         }.toList
         timer.tick("Generate graph: " + edges.size + " edges")(log)
 
-        Graph(nodes, edges)
+        val graph = Graph(nodes, edges)
+        val rank = graph.pagerank().sortWith((a,b) => if(a.rank > b.rank) true else false)
+        timer.tick("Running pagerank")(log)
+
+        rank.take(50)
       case None => BadRequest("Missing required parameter l")
     }
   }
@@ -161,8 +168,6 @@ case class TimeBin(start: Int, end: Int, count: Int)
 
 // d3.js representation of graphs
 // https://github.com/mbostock/d3/wiki/Force-Layout#wiki-nodes
-case class Graph(nodes: Array[Node], links: List[Edge])
-case class Node(pid: Int, lang: Lang)
 case class Edge(source: Int, target: Int)
 
 case class Timer(start: Long) {

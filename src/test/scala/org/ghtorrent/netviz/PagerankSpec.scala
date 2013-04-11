@@ -5,10 +5,10 @@ import org.specs2.mutable._
 class PagerankSpec extends Specification {
 
   val nodes1 = List(
-    RankedNode("A"),
-    RankedNode("B"),
-    RankedNode("C"),
-    RankedNode("D")
+    Node("A"),
+    Node("B"),
+    Node("C"),
+    Node("D")
   )
 
   val links1 = List(
@@ -19,18 +19,18 @@ class PagerankSpec extends Specification {
     Link(nodes1(3), nodes1(2))
   )
 
-  val graph1 = Network(nodes1, links1)
+  val graph1 = Graph(nodes1, links1)
   val prResult1 = List(
-    RankedNode("A", 1.490),
-    RankedNode("B", 0.783),
-    RankedNode("C", 1.577),
-    RankedNode("D", 0.150)
+    Node("A", 1.490),
+    Node("B", 0.783),
+    Node("C", 1.577),
+    Node("D", 0.150)
   )
 
   val nodes2 = List(
-    RankedNode("A"),
-    RankedNode("B"),
-    RankedNode("C")
+    Node("A"),
+    Node("B"),
+    Node("C")
   )
 
   val links2 = List(
@@ -40,11 +40,11 @@ class PagerankSpec extends Specification {
     Link(nodes2(2), nodes2(0))
   )
 
-  val graph2 = Network(nodes2, links2)
+  val graph2 = Graph(nodes2, links2)
   val prResult2 = List(
-    RankedNode("A", 1.076),
-    RankedNode("B", 0.769),
-    RankedNode("C", 1.153)
+    Node("A", 1.076),
+    Node("B", 0.769),
+    Node("C", 1.153)
   )
 
   val pagerank1 = graph1.pagerank()

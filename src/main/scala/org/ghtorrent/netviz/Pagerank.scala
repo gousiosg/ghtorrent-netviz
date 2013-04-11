@@ -1,23 +1,21 @@
 package org.ghtorrent.netviz
 
-case class RankedNode[T](name: T, rank: Double = Network.default_rank)
-case class Link[T](source: RankedNode[T], target: RankedNode[T])
+case class Node[T](name: T, lang: Lang, rank: Double = Graph.default_rank)
+case class Link[T](source: Node[T], target: Node[T])
 
-case class Network[T](nodes: Seq[RankedNode[T]], edges: Seq[Link[T]]) {
+case class Graph[T](nodes: Seq[Node[T]], edges: Seq[Link[T]]) {
 
-  //def pagerank : Seq[RankedNode[T]] = converge(nodes).sortWith((a,b) => if(a.rank > b.rank) true else false)
+  private def outEdges(node: Node[T])  = edges.filter(e => e.source == node)
+  private def inEdges(node: Node[T])   = edges.filter(e => e.target == node)
 
-  private def outEdges(node: RankedNode[T])  = edges.filter(e => e.source == node)
-  private def inEdges(node: RankedNode[T])   = edges.filter(e => e.target == node)
-
-  def pagerank(deltaPR: Double = 0.0001, maxIterations: Int = 100, dumping: Double = 0.85) : Seq[RankedNode[T]] = {
+  def pagerank(deltaPR: Double = 0.0001, maxIterations: Int = 100, dumping: Double = 0.85) : Seq[Node[T]] = {
     val nodesArr = nodes.toArray
-    val nodeIdxs = (0 to (nodesArr.size - 1)).foldLeft(Map[RankedNode[T], Int]()){(acc, i) => acc ++ Map(nodesArr(i) -> i)}
+    val nodeIdxs = (0 to (nodesArr.size - 1)).foldLeft(Map[Node[T], Int]()){(acc, i) => acc ++ Map(nodesArr(i) -> i)}
 
     def iterHelper : Array[Double] = {
-      var ranks = Array.fill[Double](nodes.size)(Network.default_rank)
+      var ranks = Array.fill[Double](nodes.size)(Graph.default_rank)
       (1 to maxIterations).foreach { x =>
-        //System.out.println("Iteration " + x)
+        System.out.println("Iteration " + x)
 
         val newRanks = Array.fill[Double](nodes.size)(0)
 
@@ -50,6 +48,6 @@ case class Network[T](nodes: Seq[RankedNode[T]], edges: Seq[Link[T]]) {
   }
 }
 
-object Network {
+object Graph {
   val default_rank = 1
 }
