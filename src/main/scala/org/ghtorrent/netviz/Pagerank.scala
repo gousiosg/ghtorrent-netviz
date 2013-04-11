@@ -33,12 +33,14 @@ case class Graph[T](nodes: Seq[Node[T]], edges: Seq[Link[T]]) {
 
         val newRanks = Array.fill[Double](nodes.size)(0)
 
-        for (i <- 0 to (nodesArr.size - 1)) {
+        var i = 0
+        //for (i <- 0 to (nodesArr.size - 1)) {
+        while (i < nodesArr.length) {
           val node = nodesArr(i)
           //val incoming = inEdges(node).map {x => x.source}
           val incoming = inEdgeNodes(node)
 
-          val sumRanks = incoming.foldLeft(0d) {
+          /*val sumRanks = incoming.foldLeft(0d) {
             (acc, a) =>
               val nodeIdx = nodeIdxs(a)
               val nodePR = if (nodeIdx >= i) ranks(nodeIdx) else newRanks(nodeIdx)
@@ -46,11 +48,24 @@ case class Graph[T](nodes: Seq[Node[T]], edges: Seq[Link[T]]) {
               val totalEdges = outEdgeNodes(a).size
               val PRincr = if (totalEdges == 0) 0 else (nodePR / totalEdges.toDouble)
               acc + PRincr
+          }*/
+
+          var j = 0
+          var sumRanks = 0d
+          while (j < incoming.length) {
+            val node = incoming(j)
+            val nodeIdx = nodeIdxs(node)
+            val nodePR = if (nodeIdx >= i) ranks(nodeIdx) else newRanks(nodeIdx)
+            val totalEdges = outEdgeNodes(node).size
+            val PRincr = if (totalEdges == 0) 0 else (nodePR / totalEdges.toDouble)
+            sumRanks += PRincr
+            j += 1
           }
 
           val newRank = (1d - dumping) + dumping * sumRanks
           //System.out.println("Node " + node.name + " old=" + ranks(i) + " new=" + newRank)
           newRanks.update(i, newRank)
+          i += 1
         }
         System.out.println("s=" + newRanks.foldLeft(0d){(acc,x) => acc + x})
         ranks.zip(newRanks).find(a => Math.abs(a._1 - a._2) > deltaPR) match {

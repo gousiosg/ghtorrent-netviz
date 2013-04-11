@@ -149,7 +149,7 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
         timer.tick("Generate graph: " + edges.size + " edges")(log)
 
         val graph = Graph(nodes, edges)
-        val rank = graph.pagerank().sortWith((a,b) => if(a.rank > b.rank) true else false)
+        val rank = graph.pagerank(deltaPR = 0.01).sortWith((a,b) => if(a.rank > b.rank) true else false)
         timer.tick("Running pagerank")(log)
 
         rank.take(50)
