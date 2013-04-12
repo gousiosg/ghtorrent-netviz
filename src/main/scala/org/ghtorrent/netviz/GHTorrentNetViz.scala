@@ -87,7 +87,7 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
 
   get("/links") {
     val langs = Option(multiParams("l"))
-    val prMethod = Option(multiParams("m"))
+    val prMethod = params.get("m")
     val from = try{Integer.parseInt(params("f"))} catch {case e: Exception => 0}
     val to   = try{Integer.parseInt(params("t"))} catch {case e: Exception => Integer.MAX_VALUE}
 
@@ -152,10 +152,10 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
         val graph = Graph(nodes, edges)
 
         val rank = prMethod match {
-          case Some(m) if m == "par" => graph.parPagerank(deltaPR = 0.01)
-          case Some(m) if m == "yung" => graph.yungPagerank
-          case Some(m) => graph.pagerank(deltaPR = 0.01)
-          case None => graph.pagerank(deltaPR = 0.01)
+          case Some(m) if m == "par" => log.info("PR algo: par"); graph.parPagerank(deltaPR = 0.01)
+          case Some(m) if m == "yung" => log.info("PR algo: yung"); graph.yungPagerank
+          case Some(m) => log.info("PR algo: " + m + " specified, unknown (default)"); graph.pagerank(deltaPR = 0.01)
+          case None => log.info("PR algo: unspecified (default)"); graph.pagerank(deltaPR = 0.01)
         }
 
         timer.tick("Running pagerank")(log)
