@@ -88,6 +88,10 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
   get("/links") {
     val langs = Option(multiParams("l"))
     val prMethod = params.get("m")
+    val numNodes = try {
+      val nodes = Integer.parseInt(params("n"))
+      if (nodes > 1000) 1000 else nodes
+    } catch {case e: Exception => 0}
     val from = try{Integer.parseInt(params("f"))} catch {case e: Exception => 0}
     val to   = try{Integer.parseInt(params("t"))} catch {case e: Exception => Integer.MAX_VALUE}
 
@@ -144,23 +148,39 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
 
         val edges = d.map {
           x =>
-            Link(nodes(nodeIdxs(Node(NodeInfo(x.head.id, x.head.lang)))),
+            Edge(nodes(nodeIdxs(Node(NodeInfo(x.head.id, x.head.lang)))),
               nodes(nodeIdxs(Node(NodeInfo(x.tail.head.id, x.tail.head.lang)))))
         }.toList
-        timer.tick("Building graph: " + edges.size + " edges")(log)
 
         val graph = Graph(nodes, edges)
 
+        timer.tick("Building graph: " + edges.size + " edges")(log)
+
         val rank = prMethod match {
           case Some(m) if m == "par" => log.info("PR algo: par"); graph.parPagerank(deltaPR = 0.01)
-          case Some(m) if m == "yung" => log.info("PR algo: yung"); graph.yungPagerank
-          case Some(m) => log.info("PR algo: " + m + " specified, unknown (default)"); graph.pagerank(deltaPR = 0.01)
-          case None => log.info("PR algo: unspecified (default)"); graph.pagerank(deltaPR = 0.01)
+          case Some(m) if m == "jung" => log.info("PR algo: jung"); graph.jungPagerank
+          case Some(m) if m == "def" => log.info("PR algo: def"); graph.pagerank(deltaPR = 0.01)
+          case Some(m) => log.info("PR algo: " + m + " specified, unknown (jung)"); graph.jungPagerank
+          case None => log.info("PR algo: unspecified (jung)"); graph.jungPagerank
         }
 
         timer.tick("Running pagerank")(log)
 
-        rank.toArray.sortWith((a,b) => if(a.rank > b.rank) true else false).take(50)
+        val rankedNodes = rank.toArray.sortWith((a, b) => if (a.rank > b.rank) true else false).take(numNodes)
+        val rankedEdges = rankedNodes.map(e => e.name.pid).flatMap(x => edges.filter(y => y.source.name.pid == x))
+
+        val vertices = rankedEdges.flatMap {
+          x => List(x.source, x.target)
+        }.distinct.map {
+          x => Vertex(x.name.pid, x.name.lang)
+        }.sortWith((a, b) => if (a.pid > b.pid) true else false)
+
+        val links = rankedEdges.map(x => Link(vertices.indexOf(Vertex(x.source.name.pid, x.source.name.lang)),
+          vertices.indexOf(Vertex(x.target.name.pid, x.target.name.lang)))).toList
+
+        timer.tick("Preparing response")(log)
+        D3jsGraph(vertices, links)
+
       case None => BadRequest("Missing required parameter l")
     }
   }
@@ -174,7 +194,10 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
 
 case class TimeBin(start: Int, end: Int, count: Int)
 
+case class NodeInfo(pid: Int, lang: Lang)
+
 // d3.js representation of graphs
 // https://github.com/mbostock/d3/wiki/Force-Layout#wiki-nodes
-case class NodeInfo(pid: Int, lang: Lang)
-case class Edge(source: Int, target: Int)
+case class D3jsGraph(nodes: Array[Vertex], links: List[Link])
+case class Vertex(pid: Int, lang: Lang)
+case class Link(source: Int, target: Int)

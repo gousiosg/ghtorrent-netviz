@@ -7,11 +7,11 @@ import edu.uci.ics.jung.graph.DirectedSparseGraph
 
 case class Node[T](name: T, rank: Double = Graph.default_rank)
 
-case class Link[T](source: Node[T], target: Node[T]) {
+case class Edge[T](source: Node[T], target: Node[T]) {
   override def toString = source.name.toString + " -> " + target.name.toString
 }
 
-case class Graph[T](nodes: Seq[Node[T]], edges: Seq[Link[T]]) {
+case class Graph[T](nodes: Seq[Node[T]], edges: Seq[Edge[T]]) {
 
   private lazy val inEdgeNodes = {
     edges.foldLeft(Map[Node[T], List[Node[T]]]().withDefaultValue(List[Node[T]]())) {
@@ -26,6 +26,9 @@ case class Graph[T](nodes: Seq[Node[T]], edges: Seq[Link[T]]) {
         acc ++ Map(n.source -> (n.target :: acc(n.source)))
     }
   }
+
+  def outEdges(node: Node[T]) = outEdgeNodes(node).map{ x => Edge(node, x)}
+  def inEdges(node: Node[T]) = inEdgeNodes(node).map{ x => Edge(x, node)}
 
   def pagerank(deltaPR: Double = 0.0001, maxIterations: Int = 100, dumping: Double = 0.85): Seq[Node[T]] = {
     val nodesArr = nodes.toArray
@@ -136,7 +139,7 @@ case class Graph[T](nodes: Seq[Node[T]], edges: Seq[Link[T]]) {
     return nodes.zip(iterHelper).map(x => x._1.copy[T](rank = x._2)).toList.par
   }
 
-  def yungPagerank : Seq[Node[T]] = {
+  def jungPagerank : Seq[Node[T]] = {
 
     val graph = new DirectedSparseGraph[Node[T], String]()
 

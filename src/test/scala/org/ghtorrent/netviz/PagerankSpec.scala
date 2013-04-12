@@ -12,11 +12,11 @@ class PagerankSpec extends Specification {
   )
 
   val links1 = List(
-    Link(nodes1(0), nodes1(1)),
-    Link(nodes1(1), nodes1(2)),
-    Link(nodes1(0), nodes1(2)),
-    Link(nodes1(2), nodes1(0)),
-    Link(nodes1(3), nodes1(2))
+    Edge(nodes1(0), nodes1(1)),
+    Edge(nodes1(1), nodes1(2)),
+    Edge(nodes1(0), nodes1(2)),
+    Edge(nodes1(2), nodes1(0)),
+    Edge(nodes1(3), nodes1(2))
   )
 
   val graph1 = Graph(nodes1, links1)
@@ -34,10 +34,10 @@ class PagerankSpec extends Specification {
   )
 
   val links2 = List(
-    Link(nodes2(0), nodes2(1)),
-    Link(nodes2(0), nodes2(2)),
-    Link(nodes2(1), nodes2(2)),
-    Link(nodes2(2), nodes2(0))
+    Edge(nodes2(0), nodes2(1)),
+    Edge(nodes2(0), nodes2(2)),
+    Edge(nodes2(1), nodes2(2)),
+    Edge(nodes2(2), nodes2(0))
   )
 
   val graph2 = Graph(nodes2, links2)
@@ -53,7 +53,7 @@ class PagerankSpec extends Specification {
   val pagerank3 = graph1.parPagerank()
   val pagerank4 = graph2.parPagerank(0.000001, 100, 0.5)
 
-  val pagerank5 = graph1.yungPagerank
+  val pagerank5 = graph1.jungPagerank
 
   "Pagerank is correct for both graphs" in {
     pagerank1.map(x => x.rank).zip(prResult1.map(y => y.rank)).foreach(a => a._1 must beCloseTo(a._2, 0.01))
