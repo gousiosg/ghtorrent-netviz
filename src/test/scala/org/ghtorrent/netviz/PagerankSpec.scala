@@ -53,6 +53,8 @@ class PagerankSpec extends Specification {
   val pagerank3 = graph1.parPagerank()
   val pagerank4 = graph2.parPagerank(0.000001, 100, 0.5)
 
+  val pagerank5 = graph1.yungPagerank
+
   "Pagerank is correct for both graphs" in {
     pagerank1.map(x => x.rank).zip(prResult1.map(y => y.rank)).foreach(a => a._1 must beCloseTo(a._2, 0.01))
     pagerank2.map(x => x.rank).zip(prResult2.map(y => y.rank)).foreach(a => a._1 must beCloseTo(a._2, 0.01))

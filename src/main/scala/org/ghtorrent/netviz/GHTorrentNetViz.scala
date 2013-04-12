@@ -87,6 +87,7 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
 
   get("/links") {
     val langs = Option(multiParams("l"))
+    val prMethod = Option(multiParams("m"))
     val from = try{Integer.parseInt(params("f"))} catch {case e: Exception => 0}
     val to   = try{Integer.parseInt(params("t"))} catch {case e: Exception => Integer.MAX_VALUE}
 
@@ -149,10 +150,17 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
         timer.tick("Building graph: " + edges.size + " edges")(log)
 
         val graph = Graph(nodes, edges)
-        val rank = graph.parPagerank(deltaPR = 0.01).toArray.sortWith((a,b) => if(a.rank > b.rank) true else false)
+
+        val rank = prMethod match {
+          case Some(m) if m == "par" => graph.parPagerank(deltaPR = 0.01)
+          case Some(m) if m == "yung" => graph.yungPagerank
+          case Some(m) => graph.pagerank(deltaPR = 0.01)
+          case None => graph.pagerank(deltaPR = 0.01)
+        }
+
         timer.tick("Running pagerank")(log)
 
-        rank.take(50)
+        rank.toArray.sortWith((a,b) => if(a.rank > b.rank) true else false).take(50)
       case None => BadRequest("Missing required parameter l")
     }
   }

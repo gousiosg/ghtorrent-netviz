@@ -1,12 +1,15 @@
 package org.ghtorrent.netviz
 
 import scala.util.control.Breaks._
-import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable.ParSeq
+import edu.uci.ics.jung.algorithms.scoring.PageRank
+import edu.uci.ics.jung.graph.DirectedSparseGraph
 
 case class Node[T](name: T, rank: Double = Graph.default_rank)
 
-case class Link[T](source: Node[T], target: Node[T])
+case class Link[T](source: Node[T], target: Node[T]) {
+  override def toString = source.name.toString + " -> " + target.name.toString
+}
 
 case class Graph[T](nodes: Seq[Node[T]], edges: Seq[Link[T]]) {
 
@@ -131,6 +134,25 @@ case class Graph[T](nodes: Seq[Node[T]], edges: Seq[Link[T]]) {
     }
 
     return nodes.zip(iterHelper).map(x => x._1.copy[T](rank = x._2)).toList.par
+  }
+
+  def yungPagerank : Seq[Node[T]] = {
+
+    val graph = new DirectedSparseGraph[Node[T], String]()
+
+    edges.foreach {
+      edge =>
+        graph.addEdge(edge.toString, edge.source, edge.target)
+    }
+
+    val pr = new PageRank[Node[T], String](graph, 0.15)
+    pr.evaluate
+
+    val result = nodes.map{n => n.copy[T](rank = pr.getVertexScore(n))}
+    System.out.println("s=" + result.foldLeft(0d) {
+      (acc, x) => acc + x.rank
+    })
+    result
   }
 }
 

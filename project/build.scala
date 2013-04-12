@@ -27,6 +27,8 @@ object GHTorrentNetViz extends Build {
         "org.scalatra" %% "scalatra" % ScalatraVersion,
         "org.scalatra" %% "scalatra-scalate" % ScalatraVersion,
         "org.scalatra" %% "scalatra-specs2" % ScalatraVersion % "test",
+        "net.sf.jung" % "jung-algorithms" % "2.0.1",
+        "net.sf.jung" % "jung-graph-impl" % "2.0.1",
         "ch.qos.logback" % "logback-classic" % "1.0.6" % "runtime",
         "org.scalatra" %% "scalatra-json" % "2.2.0",
         "org.json4s"   %% "json4s-jackson" % "3.1.0",
