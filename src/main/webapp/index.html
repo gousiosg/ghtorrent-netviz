@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>GitHub Project Relations Visualisation</title>
+    <link rel="stylesheet" href="css/main.css" />
+    <link rel="stylesheet" href="http://code.jquery.com/ui/1.10.2/themes/smoothness/jquery-ui.css" />
+    <!--<link rel="stylesheet" href="https://raw.github.com/dyve/jquery-autocomplete/master/src/jquery.autocomplete.css" />-->
+
+    <script src="http://d3js.org/d3.v3.min.js"></script>
+    <script src="http://code.jquery.com/jquery-1.9.1.js"></script>
+    <script src="http://code.jquery.com/ui/1.10.2/jquery-ui.js"></script>
+    <!--<script src="https://raw.github.com/dyve/jquery-autocomplete/master/src/jquery.autocomplete.js"></script>-->
+
+
+</head>
+
+<body>
+    <div id="language-search">
+        <label for="langsearch">Add language: </label>
+        <input type="search" id="langsearch"/>
+        <div id="selected-languages"></div>
+    </div>
+
+    <table id="info">
+        <tr><td>Nodes</td><td><span id="totalNodesLabel">0</span></td></tr>
+        <tr><td>Links</td><td><span id="totalLinksLabel">0</span></td></tr>
+        <tr><td></td><td><span id="resetZoom">reset zoom</span></td></tr>
+    </table>
+
+    <div id="graph"></div>
+    <div id="hist"></div>
+
+    <div id="pop-up" style="display:hidden;">
+        <div id="pop-up-title"></div>
+        <div id="pop-up-content"></div>
+    </div>
+</body>
+
+<script src="scripts/histogram.js"></script>
+<script src="scripts/main.js"></script>
+</html>
