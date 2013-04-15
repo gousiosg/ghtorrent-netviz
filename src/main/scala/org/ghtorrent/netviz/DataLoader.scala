@@ -59,7 +59,7 @@ trait DataLoader {
         val project = projects.get(fields(0)) match {
           case Some(x) => x
           case None =>
-            projects.put(fields(0), Project(Integer.parseInt(fields(0)), fields(2), lang))
+            projects.put(fields(0), Project(Integer.parseInt(fields(0)), fields(1) + "/" +fields(2), lang))
             projects.get(fields(0)).get
         }
 
