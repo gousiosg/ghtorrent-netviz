@@ -1,12 +1,12 @@
 $(function() {
 
-    var color = d3.scale.category20c();
+    var color = d3.scale.category10();
     var colormap = {};
     var btnmap = {};
     var selected = {};
     var strict = true;
 
-    var langs = $.getJSON('/langs', function(data) {
+    $.getJSON('/langs', function(data) {
          var langs = data.map(function(x){ return x.name;})
 
          $("#langsearch").autocomplete ({
@@ -24,6 +24,14 @@ $(function() {
          return langs;
     });
 
+    function hexToRgb(hex) {
+        var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+            r: parseInt(result[1], 16),
+            g: parseInt(result[2], 16),
+            b: parseInt(result[3], 16)
+        } : null;
+    }
 
     function createLangButton(lang, appendTo) {
         var c = colormap[lang];
@@ -31,10 +39,11 @@ $(function() {
         if ( !c ) {
             c = color(lang);
             colormap[lang] = c;
+            var rgb = hexToRgb(c);
 
             btnmap[lang] = $('<span/>',{
                 class: 'langLabel',
-                style: 'background: '+ c +';',
+                style: 'background: rgba(' + rgb.r + ',' + rgb.g +',' + rgb.b+ ', 0.3)',
                 id: 'lang-' + lang
             }).append(
                 (lang) + '<span class="lang-remove">&#10006;</span>'
@@ -42,61 +51,79 @@ $(function() {
 
             $('#lang-' + lang + '> span.lang-remove').click(function(){
                 $(this).parent().remove();
+
                 delete colormap[lang];
             });
         }
         return c;
     };
 
-    // Create d3.js canvas
+    // Create the d3.js canvas
     var width = $(window).width() - 20,
         height = $(window).height() - 20;
 
-    var force = d3.layout.force()
-        .charge(-120)
-        .linkDistance(30)
-        .size([width, height]);
+    var zoomer = d3.behavior.zoom();
 
-    var svg = d3.select("#graph").append("svg")
-        .attr("width", width)
-        .attr("height", height);
+    var svg = d3.select("#graph")
+                .append("svg")
+                .attr("width", width)
+                .attr("height", height);
+
+    function onzoom() {
+        graphScale = zoomer.scale();
+        graphTrans = zoomer.translate();
+        d3.select("#graph > svg > g").attr("transform",
+            "translate("+graphTrans+")"+" scale("+graphScale+")");
+    }
 
     function updateGraph(langs) {
         var tmp = langs.reduce(function(acc, x){return acc + "l=" + x + "&" ;},"");
         var q = tmp.substring(0, tmp.lastIndexOf('&'));
+
         d3.json("/links?" + q, function(error, graph) {
-          force.nodes(graph.nodes)
+
+            // Define the plotting area
+            var plot = svg.append('g')
+                          .call(zoomer.on("zoom", onzoom ));
+
+            var force = d3.layout
+                        .force()
+                        .charge(-120)
+                        .linkDistance(30)
+                        .size([width, height]);
+
+            force.nodes(graph.nodes)
                .links(graph.links)
                .start();
 
-          var link = svg.selectAll(".link")
-              .data(graph.links)
-              .enter().append("line")
-              .attr("class", "link")
-              .style("stroke-width", function(d) { return Math.sqrt(d.value); });
+            var link = plot.selectAll(".link")
+                          .data(graph.links)
+                          .enter()
+                          .append("line")
+                          .attr("class", "link")
+                          .style("stroke-width", function(d) { return Math.sqrt(d.value);});
 
-          var node = svg.selectAll(".node")
-              .data(graph.nodes)
-            .enter().append("circle")
-              .attr("class", "node")
-              .attr("r", 5)
-              .style("fill", function(d) { return colormap[d.lang.name]; })
-              .call(force.drag);
+            var node = plot.selectAll(".node")
+                          .data(graph.nodes)
+                          .enter()
+                          .append("circle")
+                          .attr("class", "node")
+                          .attr("r", function(d){ return Math.log(d.commits)})
+                          .style("fill", function(d) { return colormap[d.lang.name]; })
+                          .call(force.drag);
 
-          node.append("title")
-              .text(function(d) { return d.name; });
+            node.append("title").text(function(d) { return d.name; });
 
-          force.on("tick", function() {
-            link.attr("x1", function(d) { return d.source.x; })
-                .attr("y1", function(d) { return d.source.y; })
-                .attr("x2", function(d) { return d.target.x; })
-                .attr("y2", function(d) { return d.target.y; });
+            force.on("tick", function() {
+                link.attr("x1", function(d) { return d.source.x; })
+                    .attr("y1", function(d) { return d.source.y; })
+                    .attr("x2", function(d) { return d.target.x; })
+                    .attr("y2", function(d) { return d.target.y; });
 
-            node.attr("cx", function(d) { return d.x; })
-                .attr("cy", function(d) { return d.y; });
-          });
+                node.attr("cx", function(d) { return d.x; })
+                    .attr("cy", function(d) { return d.y; });
+            });
         });
     }
-
 });
 
