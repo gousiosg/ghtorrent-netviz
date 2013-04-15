@@ -57,6 +57,9 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
   lazy val commitsPerProject =
     data.commits.groupBy(c => c.project.id).foldLeft(Map[Int, Int]())((acc, a) => acc ++ Map(a._1 -> a._2.length))
 
+  lazy val projectLangs =
+    data.projects.foldLeft(Map[Int, Lang]())((acc, a) => acc ++ Map(a.id -> a.lang))
+
   get("/langs") {
     data.langs.toList
   }
@@ -186,7 +189,7 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
   def dataLocation: String = System.getProperty("data.file")
 
   def numCommits(x: Int) = commitsPerProject(x)
-  def projectLang(x: Int) = data.projects.find(p => p.id == x).map(x => x.lang.name).getOrElse("")
+  def projectLang(x: Int) = projectLangs(x).name
 }
 
 case class TimeBin(start: Int, end: Int, count: Int)
