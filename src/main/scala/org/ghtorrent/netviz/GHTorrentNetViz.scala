@@ -5,7 +5,6 @@ import org.scalatra.json._
 
 import org.scalatra.{BadRequest, NotFound}
 import org.slf4j.LoggerFactory
-import scala.collection.parallel.immutable.ParSeq
 
 class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJsonSupport {
 
@@ -91,7 +90,7 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
     val numNodes = try {
       val nodes = Integer.parseInt(params("n"))
       if (nodes > 1000) 1000 else nodes
-    } catch {case e: Exception => 0}
+    } catch {case e: Exception => 1000}
     val from = try{Integer.parseInt(params("f"))} catch {case e: Exception => 0}
     val to   = try{Integer.parseInt(params("t"))} catch {case e: Exception => Integer.MAX_VALUE}
 
@@ -139,20 +138,15 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
         val nodes = d.foldLeft(Set[Project]()){
           (acc, x) => acc + x.head + x.tail.head
         }.map {
-          x => Node[NodeInfo](NodeInfo(x.id, x.lang))
-        }.toArray
+          x => Node[Int](x.id)
+        }
 
         timer.tick("Graph nodes (projects): " + nodes.size + " nodes")(log)
 
-        val nodeIdxs = (0 to (nodes.size - 1)).foldLeft(Map[Node[NodeInfo], Int]()){(acc, i) => acc ++ Map(nodes(i) -> i)}
+        val prIdx = nodes.foldLeft(Map[Int, Node[Int]]()){(acc, x) => acc ++ Map(x.name -> x)}
+        val edges = d.map {x => Edge(prIdx(x.head.id), prIdx(x.tail.head.id))}
 
-        val edges = d.map {
-          x =>
-            Edge(nodes(nodeIdxs(Node(NodeInfo(x.head.id, x.head.lang)))),
-              nodes(nodeIdxs(Node(NodeInfo(x.tail.head.id, x.tail.head.lang)))))
-        }.toList
-
-        val graph = Graph(nodes, edges)
+        val graph = Graph(nodes.toList, edges.toList)
 
         timer.tick("Building graph: " + edges.size + " edges")(log)
 
@@ -166,17 +160,19 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
 
         timer.tick("Running pagerank")(log)
 
-        val rankedNodes = rank.toArray.sortWith((a, b) => if (a.rank > b.rank) true else false).take(numNodes)
-        val rankedEdges = rankedNodes.map(e => e.name.pid).flatMap(x => edges.filter(y => y.source.name.pid == x))
+        val rankedNodes = rank.toList.sortWith((a, b) => if (a.rank > b.rank) true else false).take(numNodes)
+        val rankedEdges = rankedNodes.map(e => e.name).flatMap(x => edges.filter(y => y.source.name == x))
 
         val vertices = rankedEdges.flatMap {
           x => List(x.source, x.target)
         }.distinct.map {
-          x => Vertex(x.name.pid, x.name.lang)
-        }.sortWith((a, b) => if (a.pid > b.pid) true else false)
+          x => Vertex(x.name, projectLang(x.name), numCommits(x.name))
+        }.toArray.sortWith((a, b) => if (a.pid > b.pid) true else false)
 
-        val links = rankedEdges.map(x => Link(vertices.indexOf(Vertex(x.source.name.pid, x.source.name.lang)),
-          vertices.indexOf(Vertex(x.target.name.pid, x.target.name.lang)))).toList
+        timer.tick("Retrieving project info per node")(log)
+
+        val vertIdx = vertices.foldLeft(Map(0 -> -1)){(acc, x) => acc ++ Map(x.pid -> (acc.values.max + 1))}.drop(0)
+        val links = rankedEdges.map{x => Link(vertIdx(x.source.name), vertIdx(x.target.name))}.toList
 
         timer.tick("Preparing response")(log)
         D3jsGraph(vertices, links)
@@ -194,10 +190,8 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
 
 case class TimeBin(start: Int, end: Int, count: Int)
 
-case class NodeInfo(pid: Int, lang: Lang)
-
 // d3.js representation of graphs
 // https://github.com/mbostock/d3/wiki/Force-Layout#wiki-nodes
 case class D3jsGraph(nodes: Array[Vertex], links: List[Link])
-case class Vertex(pid: Int, lang: Lang)
+case class Vertex(pid: Int, lang: String, commits: Int)
 case class Link(source: Int, target: Int)
