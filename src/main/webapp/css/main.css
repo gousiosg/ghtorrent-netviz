@@ -33,20 +33,21 @@ body {
 }
 
 .langLabel {
-   border-top: 1px solid #96d1f8;
-   padding: 7px 14px;
-   -webkit-border-radius: 38px;
-   -moz-border-radius: 38px;
-   border-radius: 38px;
-   -webkit-box-shadow: rgba(0,0,0,1) 0 1px 0;
-   -moz-box-shadow: rgba(0,0,0,1) 0 1px 0;
-   box-shadow: rgba(0,0,0,1) 0 1px 0;
-   text-shadow: rgba(0,0,0,.4) 0 1px 0;
-   color: white;
-   font-size: 16px;
-   font-family: 'Lucida Grande', Helvetica, Arial, Sans-Serif;
-   text-decoration: none;
-   vertical-align: middle;
+    /*border-top: 1px solid #96d1f8;*/
+    padding: 7px 14px;
+    -webkit-border-radius: 38px;
+    -moz-border-radius: 38px;
+    border-radius: 38px;
+    /*
+    -webkit-box-shadow: rgba(0,0,0,1) 0 1px 0;
+    -moz-box-shadow: rgba(0,0,0,1) 0 1px 0;
+    box-shadow: rgba(0,0,0,1) 0 1px 0;
+    text-shadow: rgba(0,0,0,.4) 0 1px 0;*/
+    color: white;
+    font-size: 16px;
+    font-family: 'Lucida Grande', Helvetica, Arial, Sans-Serif;
+    text-decoration: none;
+    vertical-align: middle;
 }
 
 .lang-remove {
@@ -94,19 +95,10 @@ body {
     position: absolute;
     top: 10px;
     left: 20px;
-    background: #ccc;
     background: rgba(0,0,0,0.05);
     padding: 5px 10px 5px 10px;
     -moz-border-radius: 8px 8px;
     border-radius: 8px 8px;
-}
-
-#resetZoom {
-	font-size: 12px;
-	color: white;
-	text-decoration: underline;
-	cursor: pointer;
-	display: inline-block;
 }
 
 circle.node {
