@@ -68,22 +68,6 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
     }
   }
 
-  get("/projects") {
-    val lang = Integer.parseInt(params("l"))
-    val from = Integer.parseInt(params("f"))
-    val to   = Integer.parseInt(params("t"))
-
-    data.commits.filter {
-      c =>
-        c.project.lang.id == lang &&
-        c.timestamp > to &&
-        c.timestamp < from
-    }.foldLeft(Set[Project]()) {
-      (acc, x) =>
-        acc + x.project
-    }.toList
-  }
-
   get("/links") {
     val langs = Option(multiParams("l"))
     val prMethod = params.get("m")
@@ -185,7 +169,21 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
     timebins
   }
 
+  get("/project") {
+    params.get("p") match {
+      case Some(id) =>
+        data.projects.find(p => p.id == Integer.parseInt(id)) match {
+          case Some(x) => x
+          case None => NotFound
+        }
+      case None => BadRequest("Missing required parameter p")
+    }
+  }
+
   def dataLocation: String = System.getProperty("data.file")
+
+  def numCommits(x: Int) = data.commits.count(c => c.project.id == x)
+  def projectLang(x: Int) = data.projects.find(p => p.id == x).map(x => x.lang.name).getOrElse("")
 }
 
 case class TimeBin(start: Int, end: Int, count: Int)
