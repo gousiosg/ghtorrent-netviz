@@ -153,19 +153,32 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
         val rankedNodes = rank.toArray.sortWith((a, b) => if (a.rank > b.rank) true else false).take(numNodes)
         val rankedEdges = rankedNodes.map(e => e.name).flatMap{x => edges.filter{y => y.source.name == x}}
 
-        val z = rankedEdges.flatMap {
+        /*val z = rankedEdges.flatMap {
           e => List(e.source, e.target)
-        }.distinct
+        }*/
+        val z = new Array[Node[Int]](rankedEdges.size * 2)
+        var i = 0
+        rankedEdges.foreach {
+          e =>
+            z(i) = e.target
+            i += 1
+            z(i) = e.source
+            i += 1
+        }
 
-        timer.tick("z")(log)
+        timer.tick("z " + z.length + " elements")(log)
 
-        val y = z.map {
-          f => Vertex(f.name, time[Int, String](projectLang, f.name), time[Int, Int](numCommits,f.name))
+        val t = z.distinct
+
+        timer.tick("t")(log)
+
+        val y = t.map {
+          f => Vertex(f.name, projectLang(f.name), numCommits(f.name))
         }
 
         timer.tick("y")(log)
 
-        val vertices = y.toArray.sortWith((a, b) => if (a.pid > b.pid) true else false)
+        val vertices = y.sortWith((a, b) => if (a.pid > b.pid) true else false)
 
         timer.tick("Retrieving project info per node")(log)
 
@@ -199,12 +212,6 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
   def numCommits(x: Int) = commitsPerProject(x)
   def projectLang(x: Int) = projectLangs(x).name
 
-  def time[S,T](a: S => T, arg: S): T = {
-    val b = System.nanoTime
-    val result = a.apply(arg)
-    System.out.println("t: " + (System.nanoTime - b))
-    result
-  }
 }
 
 case class TimeBin(start: Int, end: Int, count: Int)
