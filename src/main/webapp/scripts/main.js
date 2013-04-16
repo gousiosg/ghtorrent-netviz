@@ -4,7 +4,7 @@ $(function() {
     var colormap = {};
     var btnmap = {};
     var selected = {};
-    var strict = true;
+    var graph = {};
     var graphTrans = [0,0],
         graphScale = 1;
 
@@ -53,8 +53,8 @@ $(function() {
 
             $('#lang-' + lang + '> span.lang-remove').click(function(){
                 $(this).parent().remove();
-
                 delete colormap[lang];
+                updateGraph(Object.keys(colormap));
             });
         }
         return c;
@@ -82,20 +82,28 @@ $(function() {
         var tmp = langs.reduce(function(acc, x){return acc + "l=" + x + "&" ;},"");
         var q = tmp.substring(0, tmp.lastIndexOf('&'));
 
-        d3.json("/links?" + q, function(error, graph) {
+        d3.json("/links?" + q, function(error, g) {
+
+            graph = g;
+
+            d3.select("#graph > svg > g").remove();
+            d3.select("#totalNodesLabel").text(g.nodes.length);
+            d3.select("#totalLinksLabel").text(g.links.length);
 
             // Define the plotting area
             var plot = svg.append('g')
                           .call(zoomer.on("zoom", onzoom ));
 
-            var force = d3.layout
-                        .force()
-                        .charge(-120)
-                        .linkDistance(30)
+            var force = d3.layout.force()
+                        .charge(-220)
+                        .gravity(0.8)
+                        .linkDistance(300)
+                        .distance(200)
+                        .alpha(0)
                         .size([width, height]);
 
             force.nodes(graph.nodes)
-               .links(graph.links);
+                 .links(graph.links);
 
             var link = plot.selectAll(".link")
                           .data(graph.links)
@@ -109,10 +117,9 @@ $(function() {
                           .enter()
                           .append("circle")
                           .attr("class", "node")
-                          .attr("r", function(d){ return Math.log(d.commits)})
+                          .attr("r", function(d){ return d.rank * 1000.0; })
                           .style("fill", function(d) { return colormap[d.lang]; })
                           .on("click", showNodePopup);
-                          //.call(force.drag);
 
             node.append("title").text(function(d) { return d.name; });
 
@@ -144,6 +151,7 @@ $(function() {
             showPopup( "Project: "  + project,
                       ["Language: " + (n.lang || UNKNOWN),
                        "Owner: "    + owner,
+                       "Links: "    + graph.links.filter(function(x){return (x.target == n);}).length,
                        "Url: <a target=\"_blank\" href=\"http://github.com/" + url + "\">" + url + "</a>"], 
                       [x,y]);
         });

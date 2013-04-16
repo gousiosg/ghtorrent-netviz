@@ -158,7 +158,8 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
         val allVertices = rankedEdges.flatMap {
           e => Array(e.source, e.target)
         }.distinct.map {
-          f => Vertex(f.name, projectLang(f.name), numCommits(f.name))
+          f => Vertex(f.name, projectLang(f.name), numCommits(f.name),
+            rankedNodes.find(p => p.name == f.name).getOrElse(Node[Int](0,0)).rank)
         }.sortWith((a, b) => if (a.pid > b.pid) true else false)
 
         val vertIdx = allVertices.foldLeft(Map(0 -> -1)){(acc, x) => acc ++ Map(x.pid -> (acc.values.max + 1))}.drop(0)
@@ -197,5 +198,5 @@ case class TimeBin(start: Int, end: Int, count: Int)
 // d3.js representation of graphs
 // https://github.com/mbostock/d3/wiki/Force-Layout#wiki-nodes
 case class D3jsGraph(nodes: Array[Vertex], links: List[Link])
-case class Vertex(pid: Int, lang: String, commits: Int)
+case class Vertex(pid: Int, lang: String, commits: Int, rank: Double)
 case class Link(source: Int, target: Int)
