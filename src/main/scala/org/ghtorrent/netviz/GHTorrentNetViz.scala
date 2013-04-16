@@ -109,7 +109,7 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
         timer.tick("Group commits by developer: " + b.size + " groups")(log)
 
         val c = b.map {
-          x => x.map{y => y.project}.toSet
+          x => x.map{y => y.project}.distinct
         }
         timer.tick("Convert commits -> projects: " + c.size + " project lists")(log)
 
