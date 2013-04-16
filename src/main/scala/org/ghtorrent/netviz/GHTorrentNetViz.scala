@@ -147,13 +147,13 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
         }
         timer.tick("Running pagerank")(log)
 
-        val foo = edges.foldLeft(Map[Int, List[Edge[Int]]]().withDefaultValue(List[Edge[Int]]())) {
+        val nodeIdx = edges.foldLeft(Map[Int, List[Edge[Int]]]().withDefaultValue(List[Edge[Int]]())) {
           (acc, e) =>
             acc ++ Map(e.source.name -> (e :: acc(e.source.name)))
         }
 
         val rankedNodes = rank.toArray.sortWith((a, b) => if (a.rank > b.rank) true else false).take(numNodes)
-        val rankedEdges = rankedNodes.flatMap{x => foo(x.name)}
+        val rankedEdges = rankedNodes.flatMap{x => nodeIdx(x.name)}
 
         val allVertices = rankedEdges.flatMap {
           e => Array(e.source, e.target)

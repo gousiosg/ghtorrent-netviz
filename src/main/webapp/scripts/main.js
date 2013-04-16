@@ -5,6 +5,8 @@ $(function() {
     var btnmap = {};
     var selected = {};
     var strict = true;
+    var graphTrans = [0,0],
+        graphScale = 1;
 
     $.getJSON('/langs', function(data) {
          var langs = data.map(function(x){ return x.name;})
@@ -93,8 +95,7 @@ $(function() {
                         .size([width, height]);
 
             force.nodes(graph.nodes)
-               .links(graph.links)
-               .start();
+               .links(graph.links);
 
             var link = plot.selectAll(".link")
                           .data(graph.links)
@@ -109,8 +110,9 @@ $(function() {
                           .append("circle")
                           .attr("class", "node")
                           .attr("r", function(d){ return Math.log(d.commits)})
-                          .style("fill", function(d) { return colormap[d.lang.name]; })
-                          .call(force.drag);
+                          .style("fill", function(d) { return colormap[d.lang]; })
+                          .on("click", showNodePopup);
+                          //.call(force.drag);
 
             node.append("title").text(function(d) { return d.name; });
 
@@ -123,7 +125,53 @@ $(function() {
                 node.attr("cx", function(d) { return d.x; })
                     .attr("cy", function(d) { return d.y; });
             });
+
+            force.start();
         });
+    }
+
+    function showNodePopup(n) {
+
+        d3.json("/project?p=" + n.pid, function(error, p) {
+
+            var x = (n.x * graphScale) + graphTrans[0];
+            var y = (n.y * graphScale) + graphTrans[1];
+
+            var owner = p.name.split("/")[0];
+            var project = p.name.split("/")[1];
+            var url = "http://github.com/" + p.name;
+
+            showPopup( "Project: "  + project,
+                      ["Language: " + (n.lang || UNKNOWN),
+                       "Owner: "    + owner,
+                       "Url: <a target=\"_blank\" href=\"http://github.com/" + url + "\">" + url + "</a>"], 
+                      [x,y]);
+        });
+    }
+
+    function showPopup(title,contents,pos) {
+        $("#pop-up").fadeOut(100,function () {
+            // Popup content
+            $("#pop-up-title").html(title);
+            $("#pop-up-content").html( "" );
+            for (var i = 0; i < contents.length; i++) {
+                $("#pop-up-content").append("<div>"+contents[i]+"</div>");
+            }
+            // Popup position
+            var popLeft = pos[0]+20;
+            var popTop  = pos[1]+20;
+            $("#pop-up").css({"left":popLeft,"top":popTop});
+            $("#pop-up").fadeIn(100);
+        });
+    }
+
+    $("#pop-up").mouseleave(function(e){
+        $("#pop-up").fadeOut(50);
+    })
+
+    function hidePopup() {
+        eff = $("#pop-up").delay(100).fadeOut(50);
+        d3.select(this).attr("fill","url(#ten1)");
     }
 });
 
