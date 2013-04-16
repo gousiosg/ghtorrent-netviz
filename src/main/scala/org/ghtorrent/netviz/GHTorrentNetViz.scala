@@ -150,43 +150,31 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
 
         timer.tick("Running pagerank")(log)
 
+        val foo = edges.foldLeft(Map[Int, List[Edge[Int]]]().withDefaultValue(List[Edge[Int]]())) {
+          (acc, e) =>
+            acc ++ Map(e.source.name -> (e :: acc(e.source.name)))
+        }
+
+        timer.tick("Building node index " + foo.keys.size)(log)
+
         val rankedNodes = rank.toArray.sortWith((a, b) => if (a.rank > b.rank) true else false).take(numNodes)
-        val rankedEdges = rankedNodes.map(e => e.name).flatMap{x => edges.filter{y => y.source.name == x}}
+        val rankedEdges = rankedNodes.flatMap{x => foo(x.name)}
 
-        /*val z = rankedEdges.flatMap {
-          e => List(e.source, e.target)
-        }*/
-        val z = new Array[Node[Int]](rankedEdges.size * 2)
-        var i = 0
-        rankedEdges.foreach {
-          e =>
-            z(i) = e.target
-            i += 1
-            z(i) = e.source
-            i += 1
-        }
+        timer.tick("rankedEdges: " + rankedEdges.size + " edges")(log)
 
-        timer.tick("z " + z.length + " elements")(log)
-
-        val t = z.distinct
-
-        timer.tick("t")(log)
-
-        val y = t.map {
+        val allVertices = rankedEdges.flatMap {
+          e => Array(e.source, e.target)
+        }.distinct.map {
           f => Vertex(f.name, projectLang(f.name), numCommits(f.name))
-        }
-
-        timer.tick("y")(log)
-
-        val vertices = y.sortWith((a, b) => if (a.pid > b.pid) true else false)
+        }.sortWith((a, b) => if (a.pid > b.pid) true else false)
 
         timer.tick("Retrieving project info per node")(log)
 
-        val vertIdx = vertices.foldLeft(Map(0 -> -1)){(acc, x) => acc ++ Map(x.pid -> (acc.values.max + 1))}.drop(0)
+        val vertIdx = allVertices.foldLeft(Map(0 -> -1)){(acc, x) => acc ++ Map(x.pid -> (acc.values.max + 1))}.drop(0)
         val links = rankedEdges.map{x => Link(vertIdx(x.source.name), vertIdx(x.target.name))}.toList
 
         timer.tick("Preparing response")(log)
-        D3jsGraph(vertices, links)
+        D3jsGraph(allVertices, links)
 
       case None => BadRequest("Missing required parameter l")
     }
@@ -211,7 +199,6 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
 
   def numCommits(x: Int) = commitsPerProject(x)
   def projectLang(x: Int) = projectLangs(x).name
-
 }
 
 case class TimeBin(start: Int, end: Int, count: Int)
