@@ -80,7 +80,7 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
     val numNodes = try {
       val nodes = Integer.parseInt(params("n"))
       if (nodes > 1000) 1000 else nodes
-    } catch {case e: Exception => 1000}
+    } catch {case e: Exception => 500}
     val from = try{Integer.parseInt(params("f"))} catch {case e: Exception => 0}
     val to   = try{Integer.parseInt(params("t"))} catch {case e: Exception => Integer.MAX_VALUE}
 
@@ -109,7 +109,7 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
         timer.tick("Group commits by developer: " + b.size + " groups")(log)
 
         val c = b.map {
-          x => x.map{y => y.project}.distinct
+          x => x.map{y => y.project}.toSet
         }
         timer.tick("Convert commits -> projects: " + c.size + " project lists")(log)
 
@@ -130,14 +130,12 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
         }.map {
           x => Node[Int](x.id)
         }
-
         timer.tick("Graph nodes (projects): " + nodes.size + " nodes")(log)
 
         val prIdx = nodes.foldLeft(Map[Int, Node[Int]]()){(acc, x) => acc ++ Map(x.name -> x)}
         val edges = d.map {x => Edge(prIdx(x.head.id), prIdx(x.tail.head.id))}
 
         val graph = Graph(nodes.toList, edges.toList)
-
         timer.tick("Building graph: " + edges.size + " edges")(log)
 
         val rank = prMethod match {
@@ -147,7 +145,6 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
           case Some(m) => log.info("PR algo: " + m + " specified, unknown (jung)"); graph.jungPagerank
           case None => log.info("PR algo: unspecified (jung)"); graph.jungPagerank
         }
-
         timer.tick("Running pagerank")(log)
 
         val foo = edges.foldLeft(Map[Int, List[Edge[Int]]]().withDefaultValue(List[Edge[Int]]())) {
@@ -155,12 +152,8 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
             acc ++ Map(e.source.name -> (e :: acc(e.source.name)))
         }
 
-        timer.tick("Building node index " + foo.keys.size)(log)
-
         val rankedNodes = rank.toArray.sortWith((a, b) => if (a.rank > b.rank) true else false).take(numNodes)
         val rankedEdges = rankedNodes.flatMap{x => foo(x.name)}
-
-        timer.tick("rankedEdges: " + rankedEdges.size + " edges")(log)
 
         val allVertices = rankedEdges.flatMap {
           e => Array(e.source, e.target)
@@ -168,12 +161,10 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
           f => Vertex(f.name, projectLang(f.name), numCommits(f.name))
         }.sortWith((a, b) => if (a.pid > b.pid) true else false)
 
-        timer.tick("Retrieving project info per node")(log)
-
         val vertIdx = allVertices.foldLeft(Map(0 -> -1)){(acc, x) => acc ++ Map(x.pid -> (acc.values.max + 1))}.drop(0)
         val links = rankedEdges.map{x => Link(vertIdx(x.source.name), vertIdx(x.target.name))}.toList
-
         timer.tick("Preparing response")(log)
+
         D3jsGraph(allVertices, links)
 
       case None => BadRequest("Missing required parameter l")
