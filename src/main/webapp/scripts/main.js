@@ -1,5 +1,6 @@
 $(function() {
 
+    var prefix = "/"
     var color = d3.scale.category10();
     var colormap = {};
     var btnmap = {};
@@ -8,7 +9,7 @@ $(function() {
     var graphTrans = [0,0],
         graphScale = 1;
 
-    $.getJSON('/langs', function(data) {
+    $.getJSON(prefix + 'langs', function(data) {
          var langs = data.map(function(x){ return x.name;})
 
          $("#langsearch").autocomplete ({
@@ -84,7 +85,7 @@ $(function() {
         var tmp = langs.reduce(function(acc, x){return acc + "l=" + x + "&" ;},"");
         var q = tmp.substring(0, tmp.lastIndexOf('&'));
         q = q + "&m=rank"
-        d3.json("/links?" + q, function(error, g) {
+        d3.json(prefix + "links?" + q, function(error, g) {
 
             graph = g;
 
@@ -161,7 +162,7 @@ $(function() {
 
     function nodeClick(n) {
 
-        d3.json("/project?p=" + n.pid, function(error, p) {
+        d3.json(prefix + "project?p=" + n.pid, function(error, p) {
 
             var x = (n.x * graphScale) + graphTrans[0];
             var y = (n.y * graphScale) + graphTrans[1];
