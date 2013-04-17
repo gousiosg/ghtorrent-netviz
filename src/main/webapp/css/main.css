@@ -33,21 +33,13 @@ body {
 }
 
 .langLabel {
-    /*border-top: 1px solid #96d1f8;*/
     padding: 7px 14px;
-    -webkit-border-radius: 38px;
-    -moz-border-radius: 38px;
     border-radius: 38px;
-    /*
-    -webkit-box-shadow: rgba(0,0,0,1) 0 1px 0;
-    -moz-box-shadow: rgba(0,0,0,1) 0 1px 0;
-    box-shadow: rgba(0,0,0,1) 0 1px 0;
-    text-shadow: rgba(0,0,0,.4) 0 1px 0;*/
     color: white;
-    font-size: 16px;
+    font-size: 20px;
     font-family: 'Lucida Grande', Helvetica, Arial, Sans-Serif;
-    text-decoration: none;
-    vertical-align: middle;
+    border-style: solid;
+    border-color: white;
 }
 
 .lang-remove {
@@ -97,8 +89,23 @@ body {
     left: 20px;
     background: rgba(0,0,0,0.05);
     padding: 5px 10px 5px 10px;
-    -moz-border-radius: 8px 8px;
     border-radius: 8px 8px;
+}
+
+.link.active {
+  stroke: red;
+  stroke-width: 2px;
+  stroke-opacity: 1;
+}
+
+.node.active {
+    stroke: red;
+    stroke-width: 3px;
+}
+
+.langLabel.active {
+    border-color: red;
+    border-width: 3px;
 }
 
 circle.node {
@@ -114,7 +121,7 @@ circle.node.fixed {
 
 line.link {
     stroke: #999;
-    stroke-opacity: .6;
+    stroke-opacity: .2;
 }
 
 div#pop-up {

@@ -74,14 +74,16 @@ $(function() {
     function onzoom() {
         graphScale = zoomer.scale();
         graphTrans = zoomer.translate();
-        d3.select("#graph > svg > g").attr("transform",
+        d3.selectAll(".node").attr("transform",
+            "translate("+graphTrans+")"+" scale("+graphScale+")");
+        d3.selectAll(".link").attr("transform",
             "translate("+graphTrans+")"+" scale("+graphScale+")");
     }
 
     function updateGraph(langs) {
         var tmp = langs.reduce(function(acc, x){return acc + "l=" + x + "&" ;},"");
         var q = tmp.substring(0, tmp.lastIndexOf('&'));
-
+        q = q + "&m=rank"
         d3.json("/links?" + q, function(error, g) {
 
             graph = g;
@@ -96,10 +98,8 @@ $(function() {
 
             var force = d3.layout.force()
                         .charge(-220)
-                        .gravity(0.8)
+                        .gravity(0.2)
                         .linkDistance(300)
-                        .distance(200)
-                        .alpha(0)
                         .size([width, height]);
 
             force.nodes(graph.nodes)
@@ -110,16 +110,20 @@ $(function() {
                           .enter()
                           .append("line")
                           .attr("class", "link")
-                          .style("stroke-width", function(d) { return Math.sqrt(d.value);});
+                          .style("stroke-width", 1)
+                          .on("mouseover", linkMouseover)
+                          .on("mouseout", mouseout);
 
             var node = plot.selectAll(".node")
                           .data(graph.nodes)
                           .enter()
                           .append("circle")
                           .attr("class", "node")
-                          .attr("r", function(d){ return d.rank * 1000.0; })
+                          .attr("r", function(d){ var rank = d.rank * 1000.0; if (rank > 0) {return rank;} else {return 2;}})
                           .style("fill", function(d) { return colormap[d.lang]; })
-                          .on("click", showNodePopup);
+                          .on("click", nodeClick)
+                          .on("mouseover", nodeMouseover)
+                          .on("mouseout", mouseout);
 
             node.append("title").text(function(d) { return d.name; });
 
@@ -137,7 +141,25 @@ $(function() {
         });
     }
 
-    function showNodePopup(n) {
+    function linkMouseover(d) {
+        svg.selectAll(".link").classed("active", function(p) { return p === d; });
+        svg.selectAll(".node").classed("active", function(p) { return p === d.source || p === d.target; });
+      }
+
+      // Highlight the node and connected links on mouseover.
+      function nodeMouseover(d) {
+        svg.selectAll(".link").classed("active", 
+            function(p) { return p.source === d || p.target === d; });
+        d3.select(this).classed("active", true);
+        d3.select("#lang-" + d.lang).classed("active", true);
+      }
+
+      // Clear any highlighted nodes or links.
+      function mouseout() {
+        d3.selectAll(".active").classed("active", false);
+      }
+
+    function nodeClick(n) {
 
         d3.json("/project?p=" + n.pid, function(error, p) {
 
@@ -151,10 +173,13 @@ $(function() {
             showPopup( "Project: "  + project,
                       ["Language: " + (n.lang || UNKNOWN),
                        "Owner: "    + owner,
-                       "Links: "    + graph.links.filter(function(x){return (x.target == n);}).length,
-                       "Url: <a target=\"_blank\" href=\"http://github.com/" + url + "\">" + url + "</a>"], 
+                       "Common devs with: "    + graph.links.filter(function(x){return (x.source == n || x.target == n);}).length + " projects",
+                       "Rank: "     + n.rank,
+                       "Url: <a target=\"_blank\" href=\"" + url + "\">" + url + "</a>"], 
                       [x,y]);
         });
+
+        showPopup
     }
 
     function showPopup(title,contents,pos) {
