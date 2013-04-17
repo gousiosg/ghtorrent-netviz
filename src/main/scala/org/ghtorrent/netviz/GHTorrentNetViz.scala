@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory
 class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJsonSupport {
 
   val reqTS = new ThreadLocal[Long]()
-  val log = LoggerFactory.getLogger("API")
+  protected implicit val log = LoggerFactory.getLogger("API")
 
   protected implicit val jsonFormats: Formats = DefaultFormats
 
@@ -101,61 +101,79 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
                c.timestamp > from &&
                c.timestamp < to
         }
-        timer.tick("Filter timestamps and language: " + a.size + " commits")(log)
+        timer.tick("Filter timestamps and language: " + a.size + " commits")
 
         val b = a.groupBy {
           x => x.developer.id
         }.values
-        timer.tick("Group commits by developer: " + b.size + " groups")(log)
+        timer.tick("Group commits by developer: " + b.size + " groups")
 
         val c = b.map {
-          x => x.map{y => y.project}.distinct
+          x => x.map{y => y.project}.distinct //<- don't change this to .toSet!
         }
-        timer.tick("Convert commits -> projects: " + c.size + " project lists")(log)
+        timer.tick("Convert commits -> projects: " + c.size + " project lists")
 
+        // Generate combinations of projects based on the list of projects
+        // that the developer has worked in. So if a developer has worked
+        // in projects (a,b,c), we expect to see the following edges in the
+        // generated graph: (a->b), (a->c), (b->c)
         val d = c.map {
-          /* The combinations function returns an iterator so converting it to
-           * List is expensive. Make the most common cases fast.
-           */
+          // The combinations function returns an iterator so converting it to
+          // List is expensive. Make the most common cases fast.
           x => x match {
             case y if y.size == 1 => List[List[Project]]()
             case y if y.size == 2 => List(y.toList)
             case _ => x.toList.combinations(2).toList
           }
         }.flatten.toSet
-        timer.tick("Distinct pairs of projects: " + d.size + " pairs")(log)
+        timer.tick("Distinct pairs of projects: " + d.size + " pairs")
 
         val nodes = d.foldLeft(Set[Project]()){
           (acc, x) => acc + x.head + x.tail.head
         }.map {
           x => Node[Int](x.id)
         }
-        timer.tick("Graph nodes (projects): " + nodes.size + " nodes")(log)
+        timer.tick("Graph nodes (projects): " + nodes.size + " nodes")
 
+        // Index nodes by project_id
         val prIdx = nodes.foldLeft(Map[Int, Node[Int]]()){(acc, x) => acc ++ Map(x.name -> x)}
-        val edges = d.map {x => Edge(prIdx(x.head.id), prIdx(x.tail.head.id))}
+        val edges = d.map{x => Edge(prIdx(x.head.id), prIdx(x.tail.head.id))}
 
         val graph = Graph(nodes.toList, edges.toList)
-        timer.tick("Building graph: " + edges.size + " edges")(log)
+        timer.tick("Building graph: " + edges.size + " edges")
 
         val rank = prMethod match {
-          case Some(m) if m == "par" => log.info("PR algo: par"); graph.parPagerank(deltaPR = 0.01)
+          case Some(m) if m == "par"  => log.info("PR algo: par");  graph.parPagerank(deltaPR = 0.001)
           case Some(m) if m == "jung" => log.info("PR algo: jung"); graph.jungPagerank
-          case Some(m) if m == "def" => log.info("PR algo: def"); graph.pagerank(deltaPR = 0.01)
-          case Some(m) => log.info("PR algo: " + m + " specified, unknown (jung)"); graph.jungPagerank
-          case None => log.info("PR algo: unspecified (jung)"); graph.jungPagerank
+          case Some(m) if m == "def"  => log.info("PR algo: def");  graph.pagerank(deltaPR = 0.001)
+          case Some(m) if m == "rank" => log.info("PR algo: rank"); graph.nodeRank
+          case Some(m) => log.info("PR algo: " + m + " specified, unknown (rank)"); graph.jungPagerank
+          case None => log.info("PR algo: unspecified (rank)"); graph.jungPagerank
         }
-        timer.tick("Running pagerank")(log)
+        timer.tick("Ranking nodes")
 
+        // Index edges by source node
         val nodeIdx = edges.foldLeft(Map[Int, List[Edge[Int]]]().withDefaultValue(List[Edge[Int]]())) {
           (acc, e) =>
             acc ++ Map(e.source.name -> (e :: acc(e.source.name)))
         }
 
-        val rankedNodes = rank.toArray.sortWith((a, b) => if (a.rank > b.rank) true else false).take(numNodes).filter(n => n.rank > 0.005)
+        // Construct a sorted array of ranked nodes
+        val rankedNodes = rank.toArray.sortWith((a, b) => if (a.rank > b.rank) true else false).filter(n => n.rank > 0.003).take(numNodes)
+
+        // Construct a list of edges that originate from nodes in the ranked nodes list
         val rankedEdges = rankedNodes.flatMap{x => nodeIdx(x.name)}
 
-        val allVertices = rankedEdges.flatMap {
+        // Filter out edges which contain nodes linked by just one edge.
+        // This is to eliminate visual noise at the client side
+        val ranks = rankedEdges.foldLeft(Map[Node[Int], Int]().withDefaultValue(0)){
+          (acc, x) =>
+            acc ++ Map(x.source -> (acc(x.source) + 1)) ++ Map(x.target -> (acc(x.target) + 1))
+        }
+        val filteredEdges = rankedEdges.filter{e => ranks(e.target) > 1 && ranks(e.source) > 1 }
+
+        // Convert nodes and edges to the d3.js format
+        val allVertices = filteredEdges.flatMap {
           e => Array(e.source, e.target)
         }.distinct.map {
           f => Vertex(f.name, projectLang(f.name), numCommits(f.name),
@@ -163,8 +181,8 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
         }.sortWith((a, b) => if (a.pid > b.pid) true else false)
 
         val vertIdx = allVertices.foldLeft(Map(0 -> -1)){(acc, x) => acc ++ Map(x.pid -> (acc.values.max + 1))}.drop(0)
-        val links = rankedEdges.map{x => Link(vertIdx(x.source.name), vertIdx(x.target.name))}.toList
-        timer.tick("Preparing response")(log)
+        val links = filteredEdges.map{x => Link(vertIdx(x.source.name), vertIdx(x.target.name))}.toList
+        timer.tick("Preparing response: " + allVertices.length + " nodes, " + links.size + " edges")
 
         D3jsGraph(allVertices, links)
 
