@@ -157,6 +157,15 @@ case class Graph[T](nodes: Seq[Node[T]], edges: Seq[Edge[T]]) {
     })
     result
   }
+
+  def nodeRank : Seq[Node[T]] = {
+    val ranks = edges.foldLeft(Map[Node[T], Int]().withDefaultValue(0)){
+      (acc, x) =>
+        acc ++ Map(x.source -> (acc(x.source) + 1)) ++ Map(x.target -> (acc(x.target) + 1))
+    }
+    val sumRanks = ranks.values.foldLeft(0){(acc, x) => acc + x}.toDouble
+    nodes.map{n => n.copy[T](rank = (ranks(n).toDouble)/sumRanks)}
+  }
 }
 
 object Graph {
