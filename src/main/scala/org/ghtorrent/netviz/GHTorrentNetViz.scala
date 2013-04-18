@@ -25,35 +25,6 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
 
   val data = load
 
-  lazy val timebins = {
-    var min = data.commits.minBy(c => c.timestamp).timestamp
-    var max = data.commits.maxBy(c => c.timestamp).timestamp
-
-    if (min < 946684800) // 1.1.2000
-      min = 946684800
-
-    if (max > System.currentTimeMillis() / 1000)
-      max = (System.currentTimeMillis() / 1000).toInt
-
-    val bins = data.commits.foldLeft(Vector[Int]()) {
-      (acc, x) =>
-        if (min < x.timestamp && x.timestamp < max)
-          acc :+ (x.timestamp - min) / 604800
-        else
-          acc
-    }.groupBy {
-      x => x
-    }.map {
-      x =>
-        TimeBin(min + (x._1 * 604800), min + (x._1 * 604800) + 604800, x._2.size)
-    }.toList.sortWith{
-      (a,b) =>
-        a.start < b.start
-    }
-    log.info(bins.size + " histogram bins")
-    bins
-  }
-
   lazy val commitsPerProject =
     data.commits.groupBy(c => c.project.id).foldLeft(Map[Int, Int]())((acc, a) => acc ++ Map(a._1 -> a._2.length))
 
@@ -191,7 +162,60 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
   }
 
   get("/hist") {
-    timebins
+    val langs = Option(multiParams("l"))
+    langs match {
+      case Some(x) =>
+        val langIds = x.foldLeft(Set[Int]()){
+          (acc, x) =>
+            data.langs.find(y => x.equalsIgnoreCase(y.name)) match {
+              case Some(z) => acc + z.id
+              case None => acc
+            }
+        }
+
+        val commits = data.commits.filter {
+          c => langIds.contains(c.project.lang.id)
+        }
+
+        var min = commits.minBy(c => c.timestamp).timestamp
+        var max = commits.maxBy(c => c.timestamp).timestamp
+
+        if (min < 946684800) // 1.1.2000
+          min = 946684800
+
+        if (max > System.currentTimeMillis() / 1000)
+          max = (System.currentTimeMillis() / 1000).toInt
+
+        val numWeeks = (max - min) / 604800
+        println("numWeeks: " + numWeeks)
+        langIds.map {
+          l =>
+            val existingbins = commits.filter(c => c.project.lang.id == l).foldLeft(Vector[Int]()) {
+              (acc, x) =>
+                if (min < x.timestamp && x.timestamp < max)
+                  acc :+ (x.timestamp - min) / 604800
+                else
+                  acc
+            }.groupBy {
+              x => x
+            }
+
+            // Calculate the set difference between the expected and actual
+            // bins and create a new Map with empty values to be merged with
+            // the calculated bin map
+            val missingbins = ((0 to numWeeks).toSet &~ existingbins.keySet).foldLeft(Map[Int, Vector[Int]]()){
+              (acc, x) => acc ++ Map(x -> Vector[Int]())
+            }
+
+            (missingbins ++ existingbins).map {
+              x =>
+                TimeBin((min + (x._1 * 604800) + 604800) * 1000L, x._2.size,
+                  data.langs.find(lang => lang.id == l).getOrElse(Lang(12345, "UNKNOWN")).name)
+            }
+        }.flatten.toList.sortWith { (a,b) => a.date < b.date }
+
+      case None => BadRequest("Missing required parameter l")
+    }
   }
 
   get("/project") {
@@ -211,7 +235,7 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
   def projectLang(x: Int) = projectLangs(x).name
 }
 
-case class TimeBin(start: Int, end: Int, count: Int)
+case class TimeBin(date: Long, count: Int, lang: String)
 
 // d3.js representation of graphs
 // https://github.com/mbostock/d3/wiki/Force-Layout#wiki-nodes
