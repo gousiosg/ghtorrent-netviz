@@ -1,6 +1,6 @@
 $(function() {
 
-    var prefix = "/"
+    var prefix = "/netviz/"
     var color = d3.scale.category10();
     var colormap = {};
     var btnmap = {};
