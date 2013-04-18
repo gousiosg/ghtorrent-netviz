@@ -9,6 +9,35 @@ $(function() {
     var graphTrans = [0,0],
         graphScale = 1;
 
+
+    // Create the d3.js graph canvas
+    var width = $(window).width() - 20,
+        height = $(window).height() - 20;
+
+    var zoomer = d3.behavior.zoom();
+
+    var graphSVG = d3.select("#graph")
+                .append("svg")
+                .attr("width", width)
+                .attr("height", height);
+
+    var resizeTimer;
+    
+    // Adapt the graph canvas to window resizes
+    $(window).resize(function() {
+        clearTimeout(resizeTimer);
+        resizeTimer = setInterval(function(){
+            width = $(window).width() - 20;
+            height = $(window).height() - 20;
+            d3.select("#graph > svg")
+                .attr("width", width)
+                .attr("height", height);
+            updateHistogram(Object.keys(colormap));
+            clearTimeout(resizeTimer);
+        }, 200);
+    });
+
+    // Get values for the language autocomplete box
     $.getJSON(prefix + 'langs', function(data) {
          var langs = data.map(function(x){ return x.name;})
 
@@ -20,13 +49,14 @@ $(function() {
                 select: function( event, ui ) {
                     $("#langsearch").val("");
                     createLangButton(ui.item.label, $('#selected-languages'));
-                    updateGraph(Object.keys(colormap));
+                    update(Object.keys(colormap));
                     return false;
                 }
             });
          return langs;
     });
 
+    // Convert an HTML hex colour to an RGB triplette
     function hexToRgb(hex) {
         var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
         return result ? {
@@ -36,6 +66,8 @@ $(function() {
         } : null;
     }
 
+    // On select a language from the JQuery drop down add a language button
+    // to the language button div. Setup a handler for when close is clicked.
     function createLangButton(lang, appendTo) {
         var c = colormap[lang];
 
@@ -55,23 +87,18 @@ $(function() {
             $('#lang-' + lang + '> span.lang-remove').click(function(){
                 $(this).parent().remove();
                 delete colormap[lang];
-                updateGraph(Object.keys(colormap));
+                update(Object.keys(colormap));
             });
         }
         return c;
     };
 
-    // Create the d3.js canvas
-    var width = $(window).width() - 20,
-        height = $(window).height() - 20;
+    function update(langs) {
+        updateGraph(langs);
+        updateHistogram(langs);
+    }
 
-    var zoomer = d3.behavior.zoom();
-
-    var svg = d3.select("#graph")
-                .append("svg")
-                .attr("width", width)
-                .attr("height", height);
-
+    // Scale links and nodes to the new zoom level, using CSS transformations
     function onzoom() {
         graphScale = zoomer.scale();
         graphTrans = zoomer.translate();
@@ -81,10 +108,16 @@ $(function() {
             "translate("+graphTrans+")"+" scale("+graphScale+")");
     }
 
-    function updateGraph(langs) {
+    function formatLangReqURL(langs) {
         var tmp = langs.reduce(function(acc, x){return acc + "l=" + x + "&" ;},"");
         var q = tmp.substring(0, tmp.lastIndexOf('&'));
-        q = q + "&m=rank"
+        return q;
+    }
+
+    // Scale links and nodes to the new zoom level, using CSS transformations
+    function updateGraph(langs) {
+        var q = formatLangReqURL(langs) + "&m=rank";
+
         d3.json(prefix + "links?" + q, function(error, g) {
 
             graph = g;
@@ -94,7 +127,7 @@ $(function() {
             d3.select("#totalLinksLabel").text(g.links.length);
 
             // Define the plotting area
-            var plot = svg.append('g')
+            var plot = graphSVG.append('g')
                           .call(zoomer.on("zoom", onzoom ));
 
             var force = d3.layout.force()
@@ -143,13 +176,13 @@ $(function() {
     }
 
     function linkMouseover(d) {
-        svg.selectAll(".link").classed("active", function(p) { return p === d; });
-        svg.selectAll(".node").classed("active", function(p) { return p === d.source || p === d.target; });
+        graphSVG.selectAll(".link").classed("active", function(p) { return p === d; });
+        graphSVG.selectAll(".node").classed("active", function(p) { return p === d.source || p === d.target; });
       }
 
       // Highlight the node and connected links on mouseover.
       function nodeMouseover(d) {
-        svg.selectAll(".link").classed("active", 
+        graphSVG.selectAll(".link").classed("active", 
             function(p) { return p.source === d || p.target === d; });
         d3.select(this).classed("active", true);
         d3.select("#lang-" + d.lang).classed("active", true);
@@ -206,6 +239,85 @@ $(function() {
     function hidePopup() {
         eff = $("#pop-up").delay(100).fadeOut(50);
         d3.select(this).attr("fill","url(#ten1)");
+    }
+
+    function updateHistogram(languages) {
+        var q = formatLangReqURL(languages);
+
+        d3.json("hist?" + q, function(error, data) {
+            var margin = {top: 3, right: 60, bottom: 20, left: 55},
+                width = $("#hist").width() - margin.right,
+                height = $("#hist").height() - margin.bottom;
+
+            d3.select("#hist > svg").remove();
+
+            // x axis configuration
+            var x = d3.time.scale().range([0, width]);
+            var xAxis = d3.svg.axis()
+                .scale(x)
+                .orient("bottom");
+            x.domain(d3.extent(data, function(d) { return d.date; }));
+
+            // y axis configuration
+            var y = d3.scale.linear().range([height, 0]);
+            var yAxis = d3.svg.axis()
+                .scale(y)
+                .orient("left")
+                .ticks(4);
+            var commitsPerDate = d3.values(data.reduce(function(acc, x){ if(x.date in acc){acc[x.date] += x.count;} else {acc[x.date] = x.count}; return acc;}, {}));
+            y.domain([0, d3.max(commitsPerDate)]);
+
+            // Plot area configuration
+            var svg = d3.select("#hist").append("svg")
+                        .attr("width", width + margin.left + margin.right)
+                        .attr("height", height + margin.top + margin.bottom)
+                        .append("g")
+                        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+            // Create a stack of plot data indexed by language name
+            var stack = d3.layout.stack().values(function(d) { return d.values; });
+            var langs = stack(languages.map(function(lang){
+                return {
+                    name: lang,
+                    values: data.filter(function(x){ return x.lang == lang}).map(function(d){
+                        return {
+                            date: d.date,
+                            y: d.count
+                        }
+                    })
+                }
+            }));
+
+            var area = d3.svg.area()
+                        .x(function(d) { return x(d.date); })
+                        .y0(function(d) { return y(d.y0); })
+                        .y1(function(d) { return y(d.y0 + d.y); });
+
+            var lang = svg.selectAll(".browser")
+                  .data(langs)
+                  .enter().append("g")
+                  .attr("class", "browser");
+
+            lang.append("path")
+                  .attr("class", "area")
+                  .attr("d", function(d) { return area(d.values); })
+                  .style("fill", function(d) { return colormap[d.name]; });
+
+            svg.append("g")
+                  .attr("class", "x axis")
+                  .attr("transform", "translate(0," + height + ")")
+                  .call(xAxis);
+
+            svg.append("g")
+                  .attr("class", "y axis")
+                  .call(yAxis)
+                  .append("text")
+                  .attr("transform", "rotate(-90)")
+                  .attr("y", 6)
+                  .attr("dy", ".71em")
+                  .style("text-anchor", "end")
+                  .text("commits");
+        });
     }
 });
 
