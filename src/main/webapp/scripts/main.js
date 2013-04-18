@@ -116,13 +116,19 @@ $(function() {
 
     // Scale links and nodes to the new zoom level, using CSS transformations
     function updateGraph(langs) {
+        d3.select("#graph > svg > g").remove();
+        d3.select("#totalNodesLabel").text(0);
+        d3.select("#totalLinksLabel").text(0);
+
+        if (langs.length == 0)
+            return;
+
         var q = formatLangReqURL(langs) + "&m=rank";
 
         d3.json(prefix + "links?" + q, function(error, g) {
 
             graph = g;
 
-            d3.select("#graph > svg > g").remove();
             d3.select("#totalNodesLabel").text(g.nodes.length);
             d3.select("#totalLinksLabel").text(g.links.length);
 
@@ -242,14 +248,17 @@ $(function() {
     }
 
     function updateHistogram(languages) {
+        d3.select("#hist > svg").remove();
+
+        if(languages.length == 0)
+            return;
+
         var q = formatLangReqURL(languages);
 
         d3.json("hist?" + q, function(error, data) {
             var margin = {top: 3, right: 60, bottom: 20, left: 55},
                 width = $("#hist").width() - margin.right,
                 height = $("#hist").height() - margin.bottom;
-
-            d3.select("#hist > svg").remove();
 
             // x axis configuration
             var x = d3.time.scale().range([0, width]);
