@@ -6,6 +6,8 @@ $(function() {
     var btnmap = {};
     var selected = {};
     var graph = {};
+    var hist = {};
+    var selectedHist = {};
     var graphTrans = [0,0],
         graphScale = 1;
 
@@ -56,6 +58,10 @@ $(function() {
          return langs;
     });
 
+    $("#algo").change(function(){
+        updateGraph(Object.keys(colormap));
+    });
+
     // Convert an HTML hex colour to an RGB triplette
     function hexToRgb(hex) {
         var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -78,7 +84,7 @@ $(function() {
 
             btnmap[lang] = $('<span/>',{
                 class: 'langLabel',
-                style: 'background: rgba(' + rgb.r + ',' + rgb.g +',' + rgb.b+ ', 0.3)',
+                style: 'background: rgba(' + rgb.r + ',' + rgb.g +',' + rgb.b+ ', 0.8)',
                 id: 'lang-' + lang
             }).append(
                 (lang) + '<span class="lang-remove">&#10006;</span>'
@@ -93,9 +99,9 @@ $(function() {
         return c;
     };
 
-    function update(langs) {
-        updateGraph(langs);
-        updateHistogram(langs);
+    function update(langs, from, to) {
+        updateGraph(langs, from, to);
+        updateHistogram(langs, from, to);
     }
 
     // Scale links and nodes to the new zoom level, using CSS transformations
@@ -108,14 +114,22 @@ $(function() {
             "translate("+graphTrans+")"+" scale("+graphScale+")");
     }
 
-    function formatLangReqURL(langs) {
-        var tmp = langs.reduce(function(acc, x){return acc + "l=" + x + "&" ;},"");
-        var q = tmp.substring(0, tmp.lastIndexOf('&'));
+    function formatLangReqURL(langs, from, to) {
+        from = from || selectedHist.start || 0;
+        to = to || selectedHist.end || (Math.pow(2,32) - 1);
+
+        if (from == to){
+            from = 0;
+            to = (Math.pow(2,32) - 1);
+        }
+
+        var tmp = langs.reduce(function(acc, x){return acc + "l=" + encodeURIComponent(x) + "&" ;},"");
+        var q = tmp + "f=" + from + "&t=" + to;
         return q;
     }
 
     // Scale links and nodes to the new zoom level, using CSS transformations
-    function updateGraph(langs) {
+    function updateGraph(langs, from, to) {
         d3.select("#graph > svg > g").remove();
         d3.select("#totalNodesLabel").text(0);
         d3.select("#totalLinksLabel").text(0);
@@ -123,7 +137,8 @@ $(function() {
         if (langs.length == 0)
             return;
 
-        var q = formatLangReqURL(langs) + "&m=rank";
+        var algo = $("#algo").val();
+        var q = formatLangReqURL(langs, from, to) + "&m=" + algo;
 
         d3.json(prefix + "links?" + q, function(error, g) {
 
@@ -139,7 +154,8 @@ $(function() {
             var force = d3.layout.force()
                         .charge(-220)
                         .gravity(0.2)
-                        .linkDistance(300)
+                        .linkDistance(250)
+                        //.alpha(0.5)
                         .size([width, height]);
 
             force.nodes(graph.nodes)
@@ -159,23 +175,32 @@ $(function() {
                           .enter()
                           .append("circle")
                           .attr("class", "node")
-                          .attr("r", function(d){ var rank = d.rank * 1000.0; if (rank > 0) {return rank;} else {return 2;}})
+                          .attr("r", function(d){return radius(d);})
                           .style("fill", function(d) { return colormap[d.lang]; })
                           .on("click", nodeClick)
                           .on("mouseover", nodeMouseover)
-                          .on("mouseout", mouseout);
+                          .on("mouseout", mouseout)
+                          .call(force.drag);
 
             node.append("title").text(function(d) { return d.name; });
 
             force.on("tick", function() {
+                node.attr("cx", function(d) { return d.x; })
+                    .attr("cy", function(d) { return d.y; });
+
                 link.attr("x1", function(d) { return d.source.x; })
                     .attr("y1", function(d) { return d.source.y; })
                     .attr("x2", function(d) { return d.target.x; })
                     .attr("y2", function(d) { return d.target.y; });
-
-                node.attr("cx", function(d) { return d.x; })
-                    .attr("cy", function(d) { return d.y; });
             });
+
+            function radius(d) {
+                var rank = d.rank * 1000.0;
+                if (rank > 0)
+                    return rank;
+                else
+                    return 2;
+            }
 
             force.start();
         });
@@ -247,16 +272,15 @@ $(function() {
         d3.select(this).attr("fill","url(#ten1)");
     }
 
-    function updateHistogram(languages) {
+    function updateHistogram(languages, from, to) {
         d3.select("#hist > svg").remove();
 
         if(languages.length == 0)
             return;
-
-        var q = formatLangReqURL(languages);
+        var q = formatLangReqURL(languages, from, to);
 
         d3.json("hist?" + q, function(error, data) {
-            var margin = {top: 3, right: 60, bottom: 20, left: 55},
+            var margin = {top: 3, right: 60, bottom: 20, left: 50},
                 width = $("#hist").width() - margin.right,
                 height = $("#hist").height() - margin.bottom;
 
@@ -273,7 +297,10 @@ $(function() {
                 .scale(y)
                 .orient("left")
                 .ticks(4);
-            var commitsPerDate = d3.values(data.reduce(function(acc, x){ if(x.date in acc){acc[x.date] += x.count;} else {acc[x.date] = x.count}; return acc;}, {}));
+            var commitsPerDate = d3.values(data.reduce(function(acc, x){
+                                            if(x.date in acc){acc[x.date] += x.count;}
+                                            else {acc[x.date] = x.count}; 
+                                            return acc;}, {}));
             y.domain([0, d3.max(commitsPerDate)]);
 
             // Plot area configuration
@@ -282,6 +309,17 @@ $(function() {
                         .attr("height", height + margin.top + margin.bottom)
                         .append("g")
                         .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+            var brush = d3.svg.brush()
+                        .x(x)
+                        .on("brushend", brushend);
+
+            svg.append("g")
+               .attr("class", "brush")
+               .call(brush)
+               .selectAll("rect")
+               .attr("y", -6)
+               .attr("height", height + 7);        
 
             // Create a stack of plot data indexed by language name
             var stack = d3.layout.stack().values(function(d) { return d.values; });
@@ -326,7 +364,83 @@ $(function() {
                   .attr("dy", ".71em")
                   .style("text-anchor", "end")
                   .text("commits");
+
+            function brushend() {
+                var e = brush.extent();
+                var from = Math.round(e[0].getTime() / 1000)
+                    to = Math.round(e[1].getTime() / 1000);
+
+                if (from != to)
+                    selectedHist = {
+                        start: from,
+                        end: to  
+                    }
+                else
+                    selectedHist = {}
+                
+                updateGraph(languages, from, to);
+
+                // var links = Array.range(selectedHist.start, selectedHist.end, 604800).reduce(
+                //     function(acc, to) {
+                //         acc.push("links?" + formatLangReqURL(languages) + "&f=" + selectedHist.start + "&t=" + to);
+                //         return acc;
+                //     }, new Array());
+
+                // links.forEach(function(x) {
+                //     d3.json(x, function(e, l) {
+
+                //     })
+                // });
+
+                // var suggestions = links.select(function (text) {
+                //     return  $.ajaxAsObservable({url: 'text', dataType: 'json'});
+                // }).where( function (data) {
+                //     return data.length == 2 && data[1].length > 0;
+                // }).switchLatest();
+
+                // if (selectedHist.start != selectedHist.end) {
+                //     $('#play').show();
+                //     $('#play').addClass('langLabel');
+                //     $('#play').css('background', 'rgba(0,0,0, 0.5)');
+                // } else {
+                //     $('#play').removeClass('langLabel');
+                //     $('#play').hide();
+                // }
+            }
         });
     }
+
+    $('#play').mouseenter(function(){
+        $('#play').addClass('active');
+    });
+
+    $('#play').mouseleave(function(){
+        $('#play').removeClass('active');
+    });
+
+    $('#play').click(function(){
+        
+    });
 });
+
+Array.range= function(a, b, step){
+    var A= [];
+    if (typeof a == 'number') {
+        A[0] = a;
+        step = step || 1;
+        while(a + step <= b){
+            A[A.length] = a+= step;
+        }
+    }
+    else {
+        var s = 'abcdefghijklmnopqrstuvwxyz';
+        if(a === a.toUpperCase()){
+            b = b.toUpperCase();
+            s = s.toUpperCase();
+        }
+        s = s.substring(s.indexOf(a), s.indexOf(b)+ 1);
+        A = s.split('');        
+    }
+    return A;
+}
 

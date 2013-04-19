@@ -5,14 +5,10 @@
     <base href="http://ghtorrent.org/netviz/"></base>
     <link rel="stylesheet" href="css/main.css" />
     <link rel="stylesheet" href="http://code.jquery.com/ui/1.10.2/themes/smoothness/jquery-ui.css" />
-    <!--<link rel="stylesheet" href="https://raw.github.com/dyve/jquery-autocomplete/master/src/jquery.autocomplete.css" />-->
 
     <script src="http://d3js.org/d3.v3.min.js"></script>
     <script src="http://code.jquery.com/jquery-1.9.1.js"></script>
     <script src="http://code.jquery.com/ui/1.10.2/jquery-ui.js"></script>
-    <!--<script src="https://raw.github.com/dyve/jquery-autocomplete/master/src/jquery.autocomplete.js"></script>-->
-
-
 </head>
 
 <body>
@@ -27,9 +23,21 @@
         <tr><td>Links</td><td><span id="totalLinksLabel">0</span></td></tr>
     </table>
 
+    <div id="algo-select">
+        Ranking algorithm
+        <select id="algo">
+            <option value="rank">Node rank</option>
+            <option value="jung">Pagerank</option>
+        </select>
+    </div>
+
     <div id="graph"></div>
     <div id="hist"></div>
 
+    <span id="play" style="display:none;">
+        Play!
+    </span>
+    
     <div id="pop-up" style="display:hidden;">
         <div id="pop-up-title"></div>
         <div id="pop-up-content"></div>
