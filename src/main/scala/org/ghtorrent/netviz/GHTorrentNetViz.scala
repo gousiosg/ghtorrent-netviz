@@ -33,6 +33,9 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
   lazy val projectLangs =
     data.projects.foldLeft(Map[Int, Lang]())((acc, a) => acc ++ Map(a.id -> a.lang))
 
+  lazy val projectNames =
+    data.projects.foldLeft(Map[Int, String]())((acc, a) => acc ++ Map(a.id -> a.name))
+
   get("/langs") {
     data.langs.toList
   }
@@ -140,12 +143,12 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
         val allVertices = filteredEdges.flatMap {
           e => Array(e.source, e.target)
         }.distinct.map {
-          f => Vertex(f.name, projectLang(f.name), numCommits(f.name),
+          f => Vertex(projectName(f.name), projectLang(f.name), numCommits(f.name),
             rankedNodes.find(p => p.name == f.name).getOrElse(Node[Int](0,0)).rank)
-        }.sortWith((a, b) => if (a.pid > b.pid) true else false)
+        }.sortWith((a, b) => if (a.rank > b.rank) true else false)
 
-        val vertIdx = allVertices.foldLeft(Map(0 -> -1)){(acc, x) => acc ++ Map(x.pid -> (acc.values.max + 1))}.drop(0)
-        val links = filteredEdges.map{x => Link(vertIdx(x.source.name), vertIdx(x.target.name))}.toList
+        val vertIdx = allVertices.foldLeft(Map("" -> -1)){(acc, x) => acc ++ Map(x.name -> (acc.values.max + 1))}.drop(0)
+        val links = filteredEdges.map{x => Link(vertIdx(projectName(x.source.name)), vertIdx(projectName(x.target.name)))}.toList
         timer.tick("Preparing response: " + allVertices.length + " nodes, " + links.size + " edges")
 
         D3jsGraph(allVertices, links)
@@ -226,6 +229,7 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
 
   def numCommits(x: Int) = commitsPerProject(x)
   def projectLang(x: Int) = projectLangs(x).name
+  def projectName(x: Int) = projectNames(x)
 }
 
 case class TimeBin(date: Long, count: Int, lang: String)
@@ -233,5 +237,5 @@ case class TimeBin(date: Long, count: Int, lang: String)
 // d3.js representation of graphs
 // https://github.com/mbostock/d3/wiki/Force-Layout#wiki-nodes
 case class D3jsGraph(nodes: Array[Vertex], links: List[Link])
-case class Vertex(pid: Int, lang: String, commits: Int, rank: Double)
+case class Vertex(name: String, lang: String, commits: Int, rank: Double)
 case class Link(source: Int, target: Int)
