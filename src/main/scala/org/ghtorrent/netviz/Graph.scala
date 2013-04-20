@@ -14,8 +14,9 @@ case class Edge[T](source: Node[T], target: Node[T]) {
   override def equals(other: Any) : Boolean = {
     if(!other.isInstanceOf[Edge[T]]) return false
     val a = other.asInstanceOf[Edge[T]]
-    this.source == a.source && this.target == a.target ||
-    this.target == a.source && this.target == a.source
+
+    (this.source == a.source && this.target == a.target) ||
+      (this.target == a.source && this.source == a.target)
   }
 }
 
