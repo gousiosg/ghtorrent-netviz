@@ -226,13 +226,13 @@ $(function() {
 
     function nodeClick(n) {
 
-        d3.json(prefix + "project?p=" + n.pid, function(error, p) {
+//        d3.json(prefix + "project?p=" + n.pid, function(error, p) {
 
             var x = (n.x * graphScale) + graphTrans[0];
             var y = (n.y * graphScale) + graphTrans[1];
 
-            var owner = p.name.split("/")[0];
-            var project = p.name.split("/")[1];
+            var owner = n.name.split("/")[0];
+            var project = n.name.split("/")[1];
             var url = "http://github.com/" + p.name;
 
             showPopup( "Project: "  + project,
@@ -242,7 +242,7 @@ $(function() {
                        "Rank: "     + n.rank,
                        "Url: <a target=\"_blank\" href=\"" + url + "\">" + url + "</a>"], 
                       [x,y]);
-        });
+      //  });
 
         showPopup
     }
