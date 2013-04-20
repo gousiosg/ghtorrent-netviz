@@ -5,7 +5,11 @@ import scala.collection.parallel.immutable.ParSeq
 import edu.uci.ics.jung.algorithms.scoring.PageRank
 import edu.uci.ics.jung.graph.DirectedSparseGraph
 
-case class Node[T](name: T, rank: Double = Graph.default_rank)
+case class Node[T](name: T, rank: Double = Graph.default_rank) {
+  override def hashCode: Int = {
+    41 * 7 + name.hashCode
+  }
+}
 
 case class Edge[T](source: Node[T], target: Node[T]) {
 
@@ -17,6 +21,10 @@ case class Edge[T](source: Node[T], target: Node[T]) {
 
     (this.source == a.source && this.target == a.target) ||
       (this.target == a.source && this.source == a.target)
+  }
+
+  override def hashCode: Int = {
+    41 * 7 + source.hashCode + target.hashCode
   }
 }
 
