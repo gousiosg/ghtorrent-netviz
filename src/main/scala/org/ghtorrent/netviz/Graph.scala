@@ -8,7 +8,15 @@ import edu.uci.ics.jung.graph.DirectedSparseGraph
 case class Node[T](name: T, rank: Double = Graph.default_rank)
 
 case class Edge[T](source: Node[T], target: Node[T]) {
+
   override def toString = source.name.toString + " -> " + target.name.toString
+
+  override def equals(other: Any) : Boolean = {
+    if(!other.isInstanceOf[Edge[T]]) return false
+    val a = other.asInstanceOf[Edge[T]]
+    this.source == a.source && this.target == a.target ||
+    this.target == a.source && this.target == a.source
+  }
 }
 
 case class Graph[T](nodes: Seq[Node[T]], edges: Seq[Edge[T]]) {
