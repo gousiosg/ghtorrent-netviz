@@ -21,6 +21,8 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
   after() {
     val time = System.currentTimeMillis() - reqTS.get
     log.info("time: " + time + " ms")
+    response.addHeader("Cache-Control", "must-revalidate, max-age=864000")
+    response.addHeader("Vary", "Accept-Encoding")
   }
 
   val data = load
