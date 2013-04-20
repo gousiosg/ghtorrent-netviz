@@ -123,7 +123,7 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
         }
 
         // Construct a sorted array of ranked nodes
-        val rankedNodes = rank.toArray.sortWith((a, b) => if (a.rank > b.rank) true else false).take(numNodes)
+        val rankedNodes = rank.toArray.sortWith((a, b) => if (a.rank > b.rank) true else false).take(numNodes).distinct
 
         // Construct a list of edges that originate from nodes in the ranked nodes list
         val rankedEdges = rankedNodes.flatMap{x => nodeIdx(x.name)}
