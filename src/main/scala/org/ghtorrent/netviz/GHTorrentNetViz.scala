@@ -90,7 +90,7 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
         // that the developer has worked in. So if a developer has worked
         // in projects (a,b,c), we expect to see the following edges in the
         // generated graph: (a->b), (a->c), (b->c)
-        val d = c.map {
+        val edges = c.map {
           // The combinations function returns an iterator so converting it to
           // List is expensive. Make the most common cases fast.
           x => x match {
@@ -98,22 +98,13 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
             case y if y.size == 2 => List(y.toList)
             case _ => x.toList.combinations(2).toList
           }
-        }.flatten.toSet
-        timer.tick("Distinct pairs of projects: " + d.size + " pairs")
+        }.flatten.map{x => Edge(Node(x.head.id), Node(x.tail.head.id))}.toSet
+        timer.tick("Building graph: edges: " + edges.size)
 
-        val nodes = d.foldLeft(Set[Project]()){
-          (acc, x) => acc + x.head + x.tail.head
-        }.map {
-          x => Node[Int](x.id)
-        }
-        timer.tick("Graph nodes (projects): " + nodes.size + " nodes")
-
-        // Index nodes by project_id
-        val prIdx = nodes.foldLeft(Map[Int, Node[Int]]()){(acc, x) => acc ++ Map(x.name -> x)}
-        val edges = d.map{x => Edge(prIdx(x.head.id), prIdx(x.tail.head.id))}
+        val nodes = edges.flatMap{e => List(e.source, e.target)}.toSet
+        timer.tick("Building graph: nodes: " + nodes.size)
 
         val graph = Graph(nodes.toList, edges.toList)
-        timer.tick("Building graph: " + edges.size + " edges")
 
         val rank = prMethod match {
           case Some(m) if m == "par"  => log.info("PR algo: par");  graph.parPagerank(deltaPR = 0.001)
@@ -143,7 +134,7 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
           (acc, x) =>
             acc ++ Map(x.source -> (acc(x.source) + 1)) ++ Map(x.target -> (acc(x.target) + 1))
         }
-        val filteredEdges = rankedEdges.filter{e => ranks(e.target) > 1 && ranks(e.source) > 1 }
+        val filteredEdges = rankedEdges.filter{e => ranks(e.target) > 1 && ranks(e.source) > 1 }.distinct
 
         // Convert nodes and edges to the d3.js format
         val allVertices = filteredEdges.flatMap {
