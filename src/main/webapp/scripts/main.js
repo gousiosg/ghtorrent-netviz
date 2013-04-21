@@ -10,19 +10,7 @@ $(function() {
     var selectedHist = {};
     var graphTrans = [0,0],
         graphScale = 1;
-
-
-    // Create the d3.js graph canvas
-    var width = $(window).width() - 20,
-        height = $(window).height() - 20;
-
-    var zoomer = d3.behavior.zoom();
-
-    var graphSVG = d3.select("#graph")
-                .append("svg")
-                .attr("width", width)
-                .attr("height", height);
-
+    var graphSVG, zoomer;
     var resizeTimer;
     
     // Adapt the graph canvas to window resizes
@@ -108,7 +96,10 @@ $(function() {
     function onzoom() {
         graphScale = zoomer.scale();
         graphTrans = zoomer.translate();
-        d3.selectAll(".node").attr("transform",
+
+        d3.selectAll(".node > circle").attr("transform",
+            "translate("+graphTrans+")"+" scale("+graphScale+")");
+        d3.selectAll(".node > text").attr("transform",
             "translate("+graphTrans+")"+" scale("+graphScale+")");
         d3.selectAll(".link").attr("transform",
             "translate("+graphTrans+")"+" scale("+graphScale+")");
@@ -130,7 +121,7 @@ $(function() {
 
     // Scale links and nodes to the new zoom level, using CSS transformations
     function updateGraph(langs, from, to) {
-        d3.select("#graph > svg > g").remove();
+        d3.select(".graph").remove();
         d3.select("#totalNodesLabel").text(0);
         d3.select("#totalLinksLabel").text(0);
 
@@ -147,9 +138,19 @@ $(function() {
             d3.select("#totalNodesLabel").text(g.nodes.length);
             d3.select("#totalLinksLabel").text(g.links.length);
 
-            // Define the plotting area
-            var plot = graphSVG.append('g')
-                          .call(zoomer.on("zoom", onzoom ));
+                // Create the d3.js graph canvas
+            var width = $(window).width() - 20,
+                height = $(window).height() - 20;
+
+            zoomer = d3.behavior.zoom();
+
+            graphSVG = d3.select("#graph")
+                            .append("svg")
+                            .attr("width", width)
+                            .attr("height", height)
+                            .call(zoomer.on("zoom", onzoom ));
+
+            graphSVG.classed("graph", true);
 
             var force = d3.layout.force()
                         .charge(-220)
@@ -161,7 +162,7 @@ $(function() {
             force.nodes(graph.nodes)
                  .links(graph.links);
 
-            var link = plot.selectAll(".link")
+            var link = graphSVG.selectAll(".link")
                           .data(graph.links)
                           .enter()
                           .append("line")
@@ -170,23 +171,35 @@ $(function() {
                           .on("mouseover", linkMouseover)
                           .on("mouseout", mouseout);
 
-            var node = plot.selectAll(".node")
+            var node = graphSVG.selectAll(".node")
                           .data(graph.nodes)
                           .enter()
-                          .append("circle")
+                          .append("g")
                           .attr("class", "node")
-                          .attr("r", function(d){return radius(d);})
-                          .style("fill", function(d) { return colormap[d.lang]; })
-                          .on("click", nodeClick)
-                          .on("mouseover", nodeMouseover)
-                          .on("mouseout", mouseout)
-                          .call(force.drag);
+
+            var nodes = node.append("circle")
+                  .attr("r", function(d){return radius(d);})
+                  .style("fill", function(d) { return colormap[d.lang]; })
+                  .on("click", nodeClick)
+                  .on("mouseover", nodeMouseover)
+                  .on("mouseout", mouseout)
+                  .call(force.drag);
 
             node.append("title").text(function(d) { return d.name; });
 
+            var labels = node.filter(function(d){ return (d.rank > 0.01);})
+                .append("text")
+                .attr("text-anchor", "middle")
+                .text(function(d){return d.name;})
+                .attr("class", "nodename");
+
+
             force.on("tick", function() {
-                node.attr("cx", function(d) { return d.x; })
-                    .attr("cy", function(d) { return d.y; });
+                labels.attr("x", function(d) { return d.x; })
+                      .attr("y", function(d) { return d.y; });
+
+                nodes.attr("cx", function(d) { return d.x; })
+                      .attr("cy", function(d) { return d.y; });
 
                 link.attr("x1", function(d) { return d.source.x; })
                     .attr("y1", function(d) { return d.source.y; })
@@ -226,14 +239,12 @@ $(function() {
 
     function nodeClick(n) {
 
-//        d3.json(prefix + "project?p=" + n.pid, function(error, p) {
-
             var x = (n.x * graphScale) + graphTrans[0];
             var y = (n.y * graphScale) + graphTrans[1];
 
             var owner = n.name.split("/")[0];
             var project = n.name.split("/")[1];
-            var url = "http://github.com/" + p.name;
+            var url = "http://github.com/" + n.name;
 
             showPopup( "Project: "  + project,
                       ["Language: " + (n.lang || UNKNOWN),
@@ -242,7 +253,6 @@ $(function() {
                        "Rank: "     + n.rank,
                        "Url: <a target=\"_blank\" href=\"" + url + "\">" + url + "</a>"], 
                       [x,y]);
-      //  });
 
         showPopup
     }
