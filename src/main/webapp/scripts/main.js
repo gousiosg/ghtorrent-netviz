@@ -71,7 +71,7 @@ $(function() {
             var rgb = hexToRgb(c);
 
             btnmap[lang] = $('<span/>',{
-                class: 'langLabel',
+                class: 'langLabel ' + lang.toLowerCase(),
                 style: 'background: rgba(' + rgb.r + ',' + rgb.g +',' + rgb.b+ ', 0.8)',
                 id: 'lang-' + lang
             }).append(
@@ -82,6 +82,16 @@ $(function() {
                 $(this).parent().remove();
                 delete colormap[lang];
                 update(Object.keys(colormap));
+            });
+
+            $('#lang-' + lang).mouseover(function() {
+                var lang = $(this).attr('class').split(/\s+/)[1];
+                d3.selectAll('.' + lang).classed('active', true);
+            });
+
+            $('#lang-' + lang).mouseout(function() {
+                var lang = $(this).attr('class').split(/\s+/)[1];
+                d3.selectAll('.' + lang).classed('active', false);
             });
         }
         return c;
@@ -132,7 +142,7 @@ $(function() {
         var q = formatLangReqURL(langs, from, to) + "&m=" + algo;
 
         d3.json(prefix + "links?" + q, function(error, g) {
-
+            g.nodes.sort(function(a,b){return b.rank - a.rank;})
             graph = g;
 
             d3.select("#totalNodesLabel").text(g.nodes.length);
@@ -155,8 +165,8 @@ $(function() {
             var force = d3.layout.force()
                         .charge(-220)
                         .gravity(0.2)
+                        .friction(0.6)
                         .linkDistance(250)
-                        //.alpha(0.5)
                         .size([width, height]);
 
             force.nodes(graph.nodes)
@@ -180,6 +190,7 @@ $(function() {
             var nodes = node.append("circle")
                   .attr("r", function(d){return radius(d);})
                   .style("fill", function(d) { return colormap[d.lang]; })
+                  .attr("class", function(d) { return d.lang.toLowerCase(); })
                   .on("click", nodeClick)
                   .on("mouseover", nodeMouseover)
                   .on("mouseout", mouseout)
@@ -187,7 +198,9 @@ $(function() {
 
             node.append("title").text(function(d) { return d.name; });
 
-            var labels = node.filter(function(d){ return (d.rank > 0.01);})
+            var maxRank = g.nodes.slice(0,10).last().rank;
+
+            var labels = node.filter(function(d){ return (d.rank >= maxRank);})
                 .append("text")
                 .attr("text-anchor", "middle")
                 .text(function(d){return d.name;})
@@ -389,48 +402,9 @@ $(function() {
                     selectedHist = {}
                 
                 updateGraph(languages, from, to);
-
-                // var links = Array.range(selectedHist.start, selectedHist.end, 604800).reduce(
-                //     function(acc, to) {
-                //         acc.push("links?" + formatLangReqURL(languages) + "&f=" + selectedHist.start + "&t=" + to);
-                //         return acc;
-                //     }, new Array());
-
-                // links.forEach(function(x) {
-                //     d3.json(x, function(e, l) {
-
-                //     })
-                // });
-
-                // var suggestions = links.select(function (text) {
-                //     return  $.ajaxAsObservable({url: 'text', dataType: 'json'});
-                // }).where( function (data) {
-                //     return data.length == 2 && data[1].length > 0;
-                // }).switchLatest();
-
-                // if (selectedHist.start != selectedHist.end) {
-                //     $('#play').show();
-                //     $('#play').addClass('langLabel');
-                //     $('#play').css('background', 'rgba(0,0,0, 0.5)');
-                // } else {
-                //     $('#play').removeClass('langLabel');
-                //     $('#play').hide();
-                // }
             }
         });
     }
-
-    $('#play').mouseenter(function(){
-        $('#play').addClass('active');
-    });
-
-    $('#play').mouseleave(function(){
-        $('#play').removeClass('active');
-    });
-
-    $('#play').click(function(){
-        
-    });
 });
 
 Array.range= function(a, b, step){
@@ -453,4 +427,9 @@ Array.range= function(a, b, step){
     }
     return A;
 }
+
+Array.prototype.last = function() {
+    return this[this.length - 1];
+}
+
 
