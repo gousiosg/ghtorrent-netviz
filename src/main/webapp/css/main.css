@@ -1,5 +1,5 @@
 body {
-    font-family: sans-serif;
+    font-family: 'Droid Sans', sans-serif;
     font-size: x-small;
     background: #111;
     color: white;
@@ -18,7 +18,12 @@ body {
     bottom: 0px;
     left: 0px;
     z-index: 1;
-    /*background: rgba(0,0,0,0.00);*/
+}
+
+#linkbox {
+    position: fixed;
+    top: 0px;
+    right: 0px;
 }
 
 #langsearch {
@@ -47,22 +52,12 @@ body {
     border-radius: 38px;
     color: white;
     font-size: 20px;
-    font-family: Helvetica, Arial, Sans-Serif;
-    /*border-style: solid;
-    border-color: white;*/
     z-index: 2;
 }
 
 .lang-remove {
     margin-left: 5px;
-    border-radius: 40px;
-    width: 20px;
-    height: 10px;
-    background-color: #ff0000;
-    border: 1px solid black;
-    color: white;
-    padding-left: 10px;
-    padding-top: 4px;
+    color: #f00;
 }
 
 .link-value-box {
@@ -96,7 +91,7 @@ body {
   stroke-opacity: 1;
 }
 
-.node.active {
+.active {
     stroke: red;
     stroke-width: 3px;
 }
@@ -107,14 +102,15 @@ body {
 }
 
 .nodename {
-  font: 9px sans-serif;
+  font: 10px;
   pointer-events: none;
+  -webkit-font-smoothing: "antialized";
 }
 
-circle.node {
+circle {
     fill: #f55;
     stroke: #fff;
-    stroke-width: 1.5px;
+    stroke-width: 1.2px;
 }
 
 circle.node.fixed {
@@ -124,7 +120,7 @@ circle.node.fixed {
 
 line.link {
     stroke: #999;
-    stroke-opacity: .2;
+    stroke-opacity: .3;
 }
 
 .axis path, 
