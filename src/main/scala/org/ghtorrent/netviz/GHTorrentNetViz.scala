@@ -133,11 +133,34 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
 
         // Filter out edges which contain nodes linked by just one edge.
         // This is to eliminate visual noise at the client side
-        val ranks = rankedEdges.foldLeft(Map[Node[Int], Int]().withDefaultValue(0)){
+        var ranks = rankedEdges.foldLeft(Map[Node[Int], Int]().withDefaultValue(0)){
           (acc, x) =>
             acc ++ Map(x.source -> (acc(x.source) + 1)) ++ Map(x.target -> (acc(x.target) + 1))
         }
-        val filteredEdges = rankedEdges.filter{e => ranks(e.target) > 1 && ranks(e.source) > 1 }.distinct
+        var filteredEdges = rankedEdges.filter{e => ranks(e.target) > 1 && ranks(e.source) > 1 }.distinct
+
+        // Randomly remove excessive links up to the target of 5000 connections
+        ranks = rankedEdges.foldLeft(Map[Node[Int], Int]().withDefaultValue(0)){
+          (acc, x) =>
+            acc ++ Map(x.source -> (acc(x.source) + 1)) ++ Map(x.target -> (acc(x.target) + 1))
+        }
+
+        filteredEdges = if (filteredEdges.size > 5000) {
+          val rng = new scala.util.Random()
+          val result = new scala.collection.mutable.ArrayBuffer[Edge[Int]]()
+          var added = 0
+
+          while(added == 5000) {
+            val edge = filteredEdges(rng.nextInt(filteredEdges.size))
+            if (ranks(edge.source) > 2 && ranks(edge.target) > 2) {
+                result += edge
+                added += 1
+            }
+          }
+          result.toArray
+        } else {
+          filteredEdges
+        }
 
         // Convert nodes and edges to the d3.js format
         val allVertices = filteredEdges.flatMap {
