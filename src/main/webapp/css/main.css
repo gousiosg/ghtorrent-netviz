@@ -71,14 +71,12 @@ body {
     position: absolute;
     top: 10px;
     left: 20px;
-    /*background: rgba(0,0,0,0.05);*/
     padding: 5px 10px 5px 10px;
     border-radius: 8px 8px;
 }
 
 #algo-select {
     position: absolute;
-    /*background: rgba(256,256,256,0.45);*/
     left: 20px;
     width: 100px;
     top: 60px;
@@ -93,6 +91,14 @@ body {
     vertical-align: center;
 }
 
+#project-search {
+    position: absolute;
+    left: 20px;
+    width: 100px;
+    top: 150px;
+    vertical-align: center;
+}
+
 .link.active {
   stroke: red;
   stroke-width: 2px;
@@ -100,7 +106,7 @@ body {
 }
 
 .active {
-    stroke: red;
+    /*stroke: red;*/
     stroke-width: 3px;
 }
 

@@ -38,7 +38,7 @@ $(function() {
                 focus: function( event, ui ) {},
                 select: function( event, ui ) {
                     $("#langsearch").val("");
-                    createLangButton(ui.item.label, $('#selected-languages'));
+                    createLangButton(ui.item.label.toLowerCase(), $('#selected-languages'));
                     update(Object.keys(colormap));
                     return false;
                 }
@@ -80,7 +80,7 @@ $(function() {
                 id: 'lang-' + lang
             }).append(
                 (lang) + '<span class="lang-remove">&#10006;</span>'
-            ).appendTo( appendTo )[0];
+            ).appendTo(appendTo)[0];
 
             $('#lang-' + lang + '> span.lang-remove').click(function(){
                 $(this).parent().remove();
@@ -90,12 +90,12 @@ $(function() {
 
             $('#lang-' + lang).mouseover(function() {
                 var lang = $(this).attr('class').split(/\s+/)[1];
-                d3.selectAll('.' + lang).classed('active', true);
+                d3.selectAll('.' + lang).classed('active', true).style('stroke', colormap[lang]);
             });
 
             $('#lang-' + lang).mouseout(function() {
                 var lang = $(this).attr('class').split(/\s+/)[1];
-                d3.selectAll('.' + lang).classed('active', false);
+                d3.selectAll('.' + lang).classed('active', false).style('stroke', "#fff");
             });
         }
         return c;
@@ -194,7 +194,7 @@ $(function() {
 
             var nodes = node.append("circle")
                   .attr("r", function(d){return radius(d);})
-                  .style("fill", function(d) { return colormap[d.lang]; })
+                  .style("fill", function(d) { return colormap[d.lang.toLowerCase()]; })
                   .attr("class", function(d) { return d.lang.toLowerCase(); })
                   .on("click", nodeClick)
                   .on("mouseover", nodeMouseover)
@@ -348,8 +348,8 @@ $(function() {
             var stack = d3.layout.stack().values(function(d) { return d.values; });
             var langs = stack(languages.map(function(lang){
                 return {
-                    name: lang,
-                    values: data.filter(function(x){ return x.lang == lang}).map(function(d){
+                    name: lang.toLowerCase(),
+                    values: data.filter(function(x){ return x.lang.toLowerCase() == lang.toLowerCase()}).map(function(d){
                         return {
                             date: d.date,
                             y: d.count
@@ -371,7 +371,7 @@ $(function() {
             lang.append("path")
                   .attr("class", "area")
                   .attr("d", function(d) { return area(d.values); })
-                  .style("fill", function(d) { return colormap[d.name]; });
+                  .style("fill", function(d) { return colormap[d.name.toLowerCase()]; });
 
             svg.append("g")
                   .attr("class", "x axis")
