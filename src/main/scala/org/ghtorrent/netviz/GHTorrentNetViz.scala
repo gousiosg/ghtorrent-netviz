@@ -57,6 +57,9 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
       val nodes = Integer.parseInt(params("n"))
       if (nodes > 1000) 1000 else nodes
     } catch {case e: Exception => 100}
+    val numEdges = try {
+      Integer.parseInt(params("e"))
+    } catch {case e: Exception => 5000}
     val from = try{Integer.parseInt(params("f"))} catch {case e: Exception => 0}
     val to   = try{Integer.parseInt(params("t"))} catch {case e: Exception => Integer.MAX_VALUE}
 
@@ -139,24 +142,27 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
         }
         var filteredEdges = rankedEdges.filter{e => ranks(e.target) > 1 && ranks(e.source) > 1 }.distinct
 
+        timer.tick("Filtering spikes: " + ranks.keys.size + " nodes, " + filteredEdges.size + " links")
+
         // Randomly remove excessive links up to the target of 5000 connections
         ranks = rankedEdges.foldLeft(Map[Node[Int], Int]().withDefaultValue(0)){
           (acc, x) =>
             acc ++ Map(x.source -> (acc(x.source) + 1)) ++ Map(x.target -> (acc(x.target) + 1))
         }
 
-        filteredEdges = if (filteredEdges.size > 5000) {
+        filteredEdges = if (filteredEdges.size > numEdges) {
           val rng = new scala.util.Random()
           val result = new scala.collection.mutable.ArrayBuffer[Edge[Int]]()
           var added = 0
 
-          while(added == 5000) {
+          while (added < numEdges) {
             val edge = filteredEdges(rng.nextInt(filteredEdges.size))
             if (ranks(edge.source) > 2 && ranks(edge.target) > 2) {
                 result += edge
                 added += 1
             }
           }
+          timer.tick("Trimming down edges: " + ranks.keys.size + " nodes, " + result.length + " links")
           result.toArray
         } else {
           filteredEdges
@@ -172,7 +178,7 @@ class GHTorrentNetViz extends GHTorrentNetVizStack with DataLoader with JacksonJ
 
         val vertIdx = allVertices.foldLeft(Map("" -> -1)){(acc, x) => acc ++ Map(x.name -> (acc.values.max + 1))}.drop(0)
         val links = filteredEdges.map{x => Link(vertIdx(projectName(x.source.name)), vertIdx(projectName(x.target.name)))}.toList
-        timer.tick("Preparing response: " + allVertices.length + " nodes, " + links.size + " edges")
+        timer.tick("Preparing response: " + allVertices.length + " nodes, " + links.size + " links")
 
         D3jsGraph(allVertices, links)
 
