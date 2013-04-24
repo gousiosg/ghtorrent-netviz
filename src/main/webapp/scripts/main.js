@@ -135,6 +135,7 @@ $(function() {
 
     // Scale links and nodes to the new zoom level, using CSS transformations
     function updateGraph(langs) {
+        $("#project-search").css('visibility', 'hidden');
         d3.select(".graph").remove();
         d3.select("#totalNodesLabel").text(0);
         d3.select("#totalLinksLabel").text(0);
@@ -149,6 +150,7 @@ $(function() {
         d3.json(prefix + "links?" + q, function(error, g) {
             g.nodes.sort(function(a,b){return b.rank - a.rank;})
             graph = g;
+            updateNodeSearch();
 
             d3.select("#totalNodesLabel").text(g.nodes.length);
             d3.select("#totalLinksLabel").text(g.links.length);
@@ -203,7 +205,12 @@ $(function() {
 
             node.append("title").text(function(d) { return d.name; });
 
-            var maxRank = g.nodes.slice(0,10).last().rank;
+            var lastNode = g.nodes.slice(0,10).last();
+            var maxRank;
+            if (typeof lastNode === "undefined")
+                maxRank = 0;
+            else
+                maxRank = lastNode.rank;
 
             var labels = node.filter(function(d){ return (d.rank >= maxRank);})
                 .append("text")
@@ -295,9 +302,28 @@ $(function() {
         $("#pop-up").fadeOut(50);
     })
 
-    function hidePopup() {
-        eff = $("#pop-up").delay(100).fadeOut(50);
-        d3.select(this).attr("fill","url(#ten1)");
+    function updateNodeSearch() {
+        $("#project-search").css('visibility', 'visible');
+
+        $("#projectsearch").autocomplete ({
+                source: graph.nodes.map(function(x){return x.name;}),
+                minLength: 3,
+                delay : 100,
+                focus: function( event, ui ) {
+                    highlight(ui.item.label);
+                },
+                select: function( event, ui ) {
+                    $("#projectsearch").val("");
+                    highlight(ui.item.label);
+                    return false;
+                }
+            });
+
+        function highlight(project) {
+            var node = graph.nodes.filter(function(x){return x.name == project;});
+            graphSVG.selectAll(".link").classed("active", 
+                function(p) { return p.source === node[0] || p.target === node[0]; });
+        }
     }
 
     function updateHistogram(languages) {
