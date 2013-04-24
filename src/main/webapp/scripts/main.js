@@ -7,7 +7,7 @@ $(function() {
     var selected = {};
     var graph = {};
     var hist = {};
-    var selectedHist = {};
+    var selectedHist; resetHistSelection();
     var graphTrans = [0,0],
         graphScale = 1;
     var graphSVG, zoomer;
@@ -47,6 +47,10 @@ $(function() {
     });
 
     $("#algo").change(function(){
+        updateGraph(Object.keys(colormap));
+    });
+
+    $("#edge").change(function(){
         updateGraph(Object.keys(colormap));
     });
 
@@ -97,9 +101,9 @@ $(function() {
         return c;
     };
 
-    function update(langs, from, to) {
-        updateGraph(langs, from, to);
-        updateHistogram(langs, from, to);
+    function update(langs) {
+        updateGraph(langs);
+        updateHistogram(langs);
     }
 
     // Scale links and nodes to the new zoom level, using CSS transformations
@@ -116,8 +120,8 @@ $(function() {
     }
 
     function formatLangReqURL(langs, from, to) {
-        from = from || selectedHist.start || 0;
-        to = to || selectedHist.end || (Math.pow(2,32) - 1);
+        var from = from || selectedHist.start || 0;
+        var to = to || selectedHist.end || (Math.pow(2,32) - 1);
 
         if (from == to){
             from = 0;
@@ -130,7 +134,7 @@ $(function() {
     }
 
     // Scale links and nodes to the new zoom level, using CSS transformations
-    function updateGraph(langs, from, to) {
+    function updateGraph(langs) {
         d3.select(".graph").remove();
         d3.select("#totalNodesLabel").text(0);
         d3.select("#totalLinksLabel").text(0);
@@ -138,8 +142,9 @@ $(function() {
         if (langs.length == 0)
             return;
 
-        var algo = $("#algo").val();
-        var q = formatLangReqURL(langs, from, to) + "&m=" + algo;
+        var edges = edges || $("#edge").val() || 5000;
+        var algo = algo || $("#algo").val() || "rank";
+        var q = formatLangReqURL(langs) + "&m=" + algo + "&e=" + edges;
 
         d3.json(prefix + "links?" + q, function(error, g) {
             g.nodes.sort(function(a,b){return b.rank - a.rank;})
@@ -295,14 +300,15 @@ $(function() {
         d3.select(this).attr("fill","url(#ten1)");
     }
 
-    function updateHistogram(languages, from, to) {
+    function updateHistogram(languages) {
         d3.select("#hist > svg").remove();
 
         if(languages.length == 0)
             return;
-        var q = formatLangReqURL(languages, from, to);
+        var q = formatLangReqURL(languages);
 
         d3.json("hist?" + q, function(error, data) {
+            resetHistSelection();
             var margin = {top: 3, right: 60, bottom: 20, left: 50},
                 width = $("#hist").width() - margin.right,
                 height = $("#hist").height() - margin.bottom;
@@ -335,14 +341,8 @@ $(function() {
 
             var brush = d3.svg.brush()
                         .x(x)
-                        .on("brushend", brushend);
-
-            svg.append("g")
-               .attr("class", "brush")
-               .call(brush)
-               .selectAll("rect")
-               .attr("y", -6)
-               .attr("height", height + 7);        
+                        .on("brushend", brushend)
+                        .extent([selectedHist.start, selectedHist.end]);    
 
             // Create a stack of plot data indexed by language name
             var stack = d3.layout.stack().values(function(d) { return d.values; });
@@ -388,6 +388,13 @@ $(function() {
                   .style("text-anchor", "end")
                   .text("commits");
 
+            svg.append("g")
+               .attr("class", "brush")
+               .call(brush)
+               .selectAll("rect")
+               .attr("y", -6)
+               .attr("height", height + 7);    
+
             function brushend() {
                 var e = brush.extent();
                 var from = Math.round(e[0].getTime() / 1000)
@@ -399,11 +406,18 @@ $(function() {
                         end: to  
                     }
                 else
-                    selectedHist = {}
+                    resetHistSelection();
                 
-                updateGraph(languages, from, to);
+                updateGraph(languages);
             }
         });
+    }
+
+    function resetHistSelection(){
+        selectedHist = {
+            start: 1325376000000,
+            end:   1356998400000
+        };
     }
 });
 

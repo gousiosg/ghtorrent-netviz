@@ -85,6 +85,14 @@ body {
     vertical-align: center;
 }
 
+#edge-select {
+    position: absolute;
+    left: 20px;
+    width: 100px;
+    top: 100px;
+    vertical-align: center;
+}
+
 .link.active {
   stroke: red;
   stroke-width: 2px;

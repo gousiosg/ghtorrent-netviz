@@ -2,7 +2,7 @@
 <html>
 <head>
     <title>GitHub Project Relations Visualisation</title>
-    <base href="http://ghtorrent.org/netviz/"></base>
+    <base href="http://localhost:8080/"></base>
     <link rel="stylesheet" href="css/main.css" />
     <link rel="stylesheet" href="http://code.jquery.com/ui/1.10.2/themes/smoothness/jquery-ui.css" />
     <link href='http://fonts.googleapis.com/css?family=Droid+Sans' rel='stylesheet' type='text/css'>
@@ -33,10 +33,20 @@
         </select>
     </div>
 
+    <div id="edge-select">
+        Number of links
+        <select id="edge">
+            <option value="1000">1000</option>
+            <option value="2500">2500</option>
+            <option value="5000" selected="true">5000</option>
+            <option value="7500">7500</option>
+            <option value="10000">10000</option>
+        </select>
+    </div>
+
     <div id="graph"></div>
     <div id="hist"></div>
     <div id="linkbox">
-        <iframe src="http://ghbtns.com/github-btn.html?user=gousiosg&repo=ghtorrent-netviz&type=watch&count=true" allowtransparency="true" frameborder="0" scrolling="0" width="110px" height="20px"></iframe><br/>
           <a href="https://twitter.com/share" class="twitter-share-button">Tweet</a><br/>
           <div class="g-plusone" data-size="medium"></div>
     </div>
